@@ -65,7 +65,7 @@ body{min-height:100vh;display:flex;flex-direction:column}
 /* Элемент списка проектов */
 .proj-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--muted2);font-size:12px;transition:all .12s;gap:8px;border:1px solid transparent}
 .proj-item:hover{background:var(--bg3);color:var(--text);border-color:var(--border)}
-.proj-item.active{background:var(--accent-glow);color:var(--accent-h);border-color:rgba(108,99,255,.35)}
+.proj-item.active{background:var(--accent-glow);color:var(--accent-h);border-color:rgba(255, 195, 99, 0.35)}
 .proj-item .pname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .proj-k{font-family:var(--mono);font-size:10px;background:var(--bg);padding:1px 5px;border-radius:4px;flex-shrink:0;color:var(--accent-h)}
 .s-footer{padding:12px 8px;border-top:1px solid var(--border)}
@@ -157,10 +157,10 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .knum{font-family:var(--mono);font-size:28px;font-weight:600;line-height:1}
 
 /* Карточка победителя в отчёте */
-.winner-card{background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(45,212,160,.06));border:1px solid rgba(108,99,255,.3);border-radius:var(--r3);padding:20px;display:flex;align-items:center;gap:20px;margin-bottom:14px}
+.winner-card{background:linear-gradient(135deg,rgba(0, 0, 0, 0.526),rgba(255, 255, 255, 0.219));border:1px solid rgba(255, 177, 99, 0.3);border-radius:var(--r3);padding:20px;display:flex;align-items:center;gap:20px;margin-bottom:14px}
 
 /* ── АНАЛИЗ ЧУВСТВИТЕЛЬНОСТИ ── */
-.sens-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(37,42,61,.6)}
+.sens-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(61, 51, 37, 0.6)}
 .sens-bar-wrap{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
 .sens-bar{height:100%;border-radius:3px;transition:width .4s ease}
 
@@ -191,7 +191,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .feature-card p{font-size:11px;color:var(--muted2);line-height:1.55}
 
 .tab-info{padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);display:flex;gap:12px;align-items:flex-start}
-.tab-info .ti-icon{width:32px;height:32px;background:var(--accent-glow);border:1px solid rgba(108,99,255,.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.tab-info .ti-icon{width:32px;height:32px;background:var(--accent-glow);border:1px solid rgba(255, 182, 99, 0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .tab-info h5{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
 .tab-info p{font-size:11px;color:var(--muted2);line-height:1.5}
 
@@ -260,7 +260,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
   <!-- Кнопка перехода на главную страницу -->
   <button class="s-home-btn" id="home-btn" onclick="goHome()">
-    🏠 Главная страница
+    Главная страница
   </button>
 
   <div class="s-section">Проекты</div>
