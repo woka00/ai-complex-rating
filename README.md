@@ -1,23 +1,69 @@
-# AI CharacherHub
-### Платформа комплексной оценки моделей искусственного интеллекта
+# AI Characher Hub
 
-Веб-система для объективного сравнения ИИ-моделей по группам критериев с весами, интегральным коэффициентом качества K ∈ [0..1] и анализом чувствительности.
+[![Python](https://img.shields.io/badge/python-3.10--3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/license-Open%20Source-green)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/woka00/ai-characher-hub)](https://github.com/woka00/ai-characher-hub/commits/main)
+[![Stars](https://img.shields.io/github/stars/woka00/ai-characher-hub?style=social)](https://github.com/woka00/ai-characher-hub/stargazers)
+
+> 🇬🇧 English below — 🇷🇺 [Русская версия](#русская-версия)
 
 ---
 
-## Быстрый старт
+## Overview
+
+**AI Characher Hub** is a web platform for objective comparison and benchmarking of AI models — LLMs, NLP pipelines, and computer vision models. It uses weighted evaluation criteria, a composite quality score K ∈ [0..1], and sensitivity analysis to help teams make data-driven model selection decisions.
+
+---
+
+## Screenshots
+
+> **Main dashboard — project overview with model leaderboard**
+![Project Dashboard](docs/screenshots/Project_Dashboard.png)
+
+> **Analytics tab — bar, stacked, and radar charts**
+![Analytics](docs/screenshots/Analytics.png)
+
+> **K calculation tab — ranked results with per-criteria breakdown**
+![K Score](docs/screenshots/K_Score.png)
+
+> **Testing tab — YOLO model benchmarking with progress bar and ETA**
+![Testing №1](docs/screenshots/Testing1.png)
+![Testing №2](docs/screenshots/Testing2.png)
+
+---
+
+## Features
+
+8 interface tabs, each covering a distinct part of the evaluation workflow:
+
+| Tab | Description |
+|-----|-------------|
+| 🏠 **Home** | Project overview, use cases, tab guide |
+| 📁 **Project** | Dashboard: leader, model list, status |
+| ⚖️ **Criteria** | Manage weights and groups, auto-normalize Σw=1 |
+| ✏️ **Scores** | Model × criteria scoring matrix; manual or CSV import |
+| 🧮 **K Score** | Run calculation, ranked results with breakdown |
+| 📐 **Math** | All formulas + step-by-step K calculation per model |
+| ⚡ **Testing** | Local YOLO benchmarking with live progress and ETA |
+| 📊 **Analytics** | Bar/stacked/radar charts, final report with recommendation |
+| 🔬 **Comparison** | Comparison table + sensitivity analysis |
+
+---
+
+## Quick Start
 
 ### Windows
 
-```powershell
-# Установка зависимостей
+```bash
+# Install dependencies
 python -m pip install -r requirements.txt
 
-# Запуск (браузер откроется автоматически)
+# Start the server (browser opens automatically)
 python backend/main.py
 ```
 
-Или двойной клик на `start.bat`.
+Or double-click `start.bat`.
 
 ### Linux / macOS
 
@@ -26,27 +72,211 @@ python3 -m pip install -r requirements.txt
 bash start.sh
 ```
 
-Откроется **http://localhost:8000** с двумя готовыми демо-проектами (Detection + NLP).
+Opens **http://localhost:8000** with two demo projects (Detection + NLP) preloaded.
 
-> **Версия Python:** требуется 3.10–3.12. Python 3.14 пока не поддерживается из-за несовместимости с pydantic.
+> **Python version:** 3.10–3.12 required. Python 3.14 is not yet supported due to pydantic compatibility.
 
 ---
 
-## Структура проекта
+## Mathematical Model
 
 ```
-ai_eval/
+S_k   = Σ (w_i × a_ik)     — weighted score sum for model k
+S_max = 5 × Σ w_i           — maximum possible score
+K_k   = S_k / S_max          — quality coefficient [0..1]
+```
+
+**K interpretation:**
+
+| Range | Rating |
+|-------|--------|
+| 0.90 – 1.00 | Excellent — recommended |
+| 0.75 – 0.89 | Good |
+| 0.60 – 0.74 | Acceptable |
+| 0.40 – 0.59 | Weak |
+| 0.00 – 0.39 | Not recommended |
+
+All formulas are rendered interactively on the **📐 Math** tab.
+
+---
+
+## Project Structure
+
+```
+ai-characher-hub/
 ├── backend/
-│   ├── main.py          # FastAPI + математическая модель + auto-seed + локальное тестирование
-│   ├── evaluator.py     # CLI-утилита для автоматической оценки моделей
-│   └── seed_demo.py     # Ручное наполнение демо-данными (не нужно — есть auto-seed)
+│   ├── main.py          # FastAPI app, math model, auto-seed, local testing
+│   ├── evaluator.py     # CLI tool for automated model evaluation
+│   └── seed_demo.py     # Manual demo data seeding (auto-seed handles this)
 ├── frontend/
-│   └── index.html       # SPA — 8 вкладок (включая главную, математику, тестирование)
+│   └── index.html       # SPA — 8 tabs, no build step required
 ├── requirements.txt
-├── start.bat            # Запуск на Windows
-├── start.sh             # Запуск на Linux/macOS
+├── start.bat            # Windows launcher
+├── start.sh             # Linux/macOS launcher
 └── README.md
 ```
+
+---
+
+## Adding New Models
+
+### Option 1 — Via UI
+
+1. Open your project → **Project** tab → enter model name (e.g. `YOLOv9c`) and type
+2. Click **+ Add**
+3. Go to **Scores** tab and fill in the evaluation matrix
+4. Go to **K Score** tab → click **Run Calculation**
+
+### Option 2 — Local Automated Testing
+
+Add your model to `_yolo_test_worker` in `backend/main.py`:
+
+```python
+weight_file = {
+    'YOLOv8n': 'yolov8n.pt',
+    # Add your model here:
+    'YOLOv9c': 'yolov9c.pt',
+}.get(model_name, f'{model_name.lower()}.pt')
+```
+
+Requires:
+```bash
+pip install ultralytics opencv-python
+```
+
+### Option 3 — CSV Import
+
+Prepare a CSV:
+```
+model_name,criterion_name,score
+YOLOv9c,Accuracy,4.6
+YOLOv9c,Speed,3.8
+```
+
+Go to **Scores** tab → click **📂 Import CSV**.
+
+---
+
+## API Endpoints
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | `/api/projects` | List projects |
+| POST | `/api/projects` | Create project |
+| GET | `/api/projects/{id}` | Project details |
+| DELETE | `/api/projects/{id}` | Delete project |
+| POST | `/api/projects/{id}/models` | Add model |
+| DELETE | `/api/projects/{id}/models/{mid}` | Remove model |
+| GET | `/api/projects/{id}/criteria` | Get criteria |
+| POST | `/api/projects/{id}/criteria` | Add criterion |
+| PUT | `/api/projects/{id}/criteria/{cid}` | Update criterion |
+| DELETE | `/api/projects/{id}/criteria/{cid}` | Delete criterion |
+| POST | `/api/projects/{id}/criteria/normalize` | Normalize weights |
+| GET | `/api/projects/{id}/scores` | Get scores |
+| POST | `/api/projects/{id}/scores` | Submit score |
+| POST | `/api/projects/{id}/scores/import` | CSV import |
+| POST | `/api/projects/{id}/calculate` | Run K calculation |
+| GET | `/api/projects/{id}/results` | Latest results |
+| POST | `/api/projects/{id}/sensitivity` | Sensitivity analysis |
+| GET | `/api/projects/{id}/report` | Final report |
+| **POST** | `/api/projects/{id}/test/start` | **Start local testing** |
+| **GET** | `/api/test/{job_id}` | **Polling: test status** |
+
+Full Swagger docs: **http://localhost:8000/docs**
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | FastAPI + SQLite |
+| Frontend | HTML/CSS/JS + Chart.js (no build step) |
+| ML | ultralytics, torch, transformers (optional) |
+| Deploy | Single command, runs on any laptop |
+
+---
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/your-username/ai-characher-hub`
+3. Create a branch: `git checkout -b feature/your-feature-name`
+4. Install dependencies and run locally (see Quick Start)
+5. Make your changes and commit with a descriptive message
+6. Push your branch and open a Pull Request against `main`
+
+Please make sure your code runs without errors before submitting a PR.
+
+---
+
+## License
+
+Open source. Free to use, modify, and distribute.
+
+---
+
+---
+
+# Русская версия
+
+[![Python](https://img.shields.io/badge/python-3.10--3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+
+## Платформа комплексной оценки моделей искусственного интеллекта
+
+Веб-система для объективного сравнения ИИ-моделей по группам критериев с весами, интегральным коэффициентом качества K ∈ [0..1] и анализом чувствительности.
+
+---
+
+## Скриншоты
+
+> **Главный дашборд — обзор проекта и лидерборд моделей**
+![Project Dashboard](docs/screenshots/Project_Dashboard.png)
+
+> **Вкладка «Аналитика» — bar, stacked и radar чарты**
+![Analytics](docs/screenshots/Analytics.png)
+
+> **Вкладка «Расчёт K» — рейтинг с детализацией по критериям**
+![K Score](docs/screenshots/K_Score.png)
+
+> **Вкладка «Тестирование» — прогон YOLO с прогресс-баром и ETA**
+![Testing №1](docs/screenshots/Testing1.png)
+![Testing №2](docs/screenshots/Testing2.png)
+
+
+---
+
+## Быстрый старт
+
+### Windows
+
+```bash
+python -m pip install -r requirements.txt
+python backend/main.py
+```
+
+Или двойной клик на `start.bat`.
+
+### Linux / macOS
+
+```bash
+# Создать виртуальное окружение
+python3 -m venv venv
+source venv/bin/activate
+
+# Установить зависимости
+pip install -r requirements.txt
+
+# Запустить
+python3 backend/main.py
+```
+
+Откроется **http://localhost:8000** с двумя готовыми демо-проектами (Detection + NLP).
+
+> **Версия Python:** требуется 3.10–3.12. Python 3.14 пока не поддерживается из-за несовместимости с pydantic.
 
 ---
 
@@ -55,7 +285,7 @@ ai_eval/
 ### 8 вкладок интерфейса
 
 | Вкладка | Описание |
-|---|---|
+|---------|----------|
 | 🏠 **Главная** | Описание проекта, для кого предназначен, обзор всех вкладок |
 | 📁 **Проект** | Дашборд: лидер рейтинга, модели, статус |
 | ⚖️ **Критерии** | Управление весами и группами критериев, нормировка Σw=1 |
@@ -66,27 +296,27 @@ ai_eval/
 | 📊 **Аналитика** | Bar/stacked/radar чарты, финальный отчёт с рекомендацией |
 | 🔬 **Сравнение** | Сравнительная таблица + анализ чувствительности |
 
-### Локальное тестирование моделей
+---
 
-На вкладке **⚡ Тестирование** можно запустить реальный прогон YOLO-моделей:
+## Структура проекта
 
-- Выбор моделей через чипы
-- Прогресс-бар с процентом выполнения
-- ETA (оставшееся время) в реальном времени
-- Лог выполнения с метриками каждой модели
-- Автоматическая нормировка метрик в оценки 1–5
-- Запись оценок в проект и пересчёт K
-
-**Требует установки ultralytics:**
-```bash
-pip install ultralytics opencv-python
+```
+ai-characher-hub/
+├── backend/
+│   ├── main.py          # FastAPI + математическая модель + auto-seed + локальное тестирование
+│   ├── evaluator.py     # CLI-утилита для автоматической оценки моделей
+│   └── seed_demo.py     # Ручное наполнение демо-данными (не нужно — есть auto-seed)
+├── frontend/
+│   └── index.html       # SPA — 8 вкладок, без сборки
+├── requirements.txt
+├── start.bat            # Запуск на Windows
+├── start.sh             # Запуск на Linux/macOS
+└── README.md
 ```
 
 ---
 
 ## Математическая модель
-
-### Формулы (из ТЗ)
 
 ```
 S_k   = Σ (w_i × a_ik)     — взвешенная сумма оценок модели k
@@ -94,107 +324,63 @@ S_max = 5 × Σ w_i           — максимально возможная су
 K_k   = S_k / S_max          — итоговый коэффициент качества [0..1]
 ```
 
-### Обозначения
-
-- `k` — индекс модели
-- `i` — индекс критерия
-- `w_i` — вес критерия (важность)
-- `a_ik` — оценка модели k по критерию i по шкале 1–5
-
-### Интерпретация K
+**Интерпретация K:**
 
 | Диапазон | Оценка |
-|---|---|
+|----------|--------|
 | 0.90 – 1.00 | Отличная модель — рекомендуется |
 | 0.75 – 0.89 | Хорошая модель |
 | 0.60 – 0.74 | Приемлемая модель |
 | 0.40 – 0.59 | Слабая модель |
 | 0.00 – 0.39 | Не рекомендуется |
 
-Все формулы наглядно отображаются на вкладке **📐 Математика** прямо в интерфейсе.
-
 ---
 
 ## ⚙️ Как внедрять новые модели детекции
 
-### Способ 1 — через UI (просто)
+### Способ 1 — через UI
 
-1. Открой проект на вкладке «Проект»
-2. В разделе «Модели проекта» введи название (напр. `YOLOv9c`) и выбери тип «Детекция»
-3. Нажми «+ Добавить»
-4. Перейди на вкладку «Оценки» и заполни матрицу оценок вручную
-5. На вкладке «Расчёт K» нажми «Запустить расчёт»
+1. Открой проект → вкладка «Проект» → введи название (напр. `YOLOv9c`) и тип
+2. Нажми «+ Добавить»
+3. Перейди на вкладку «Оценки» и заполни матрицу
+4. На вкладке «Расчёт K» нажми «Запустить расчёт»
 
-### Способ 2 — через автоматическое локальное тестирование
+### Способ 2 — автоматическое локальное тестирование
 
-Чтобы новая модель тестировалась автоматически на вкладке «⚡ Тестирование», нужно добавить её в код:
-
-**1. Открой `backend/main.py`, найди функцию `_yolo_test_worker` (≈ строка 525).**
-
-**2. В словаре `weight_file` добавь маппинг имени модели на файл весов:**
+Добавь модель в `_yolo_test_worker` в `backend/main.py`:
 
 ```python
 weight_file = {
     'YOLOv8n': 'yolov8n.pt',
-    'YOLOv8s': 'yolov8s.pt',
-    'YOLOv8m': 'yolov8m.pt',
-    'YOLOv8l': 'yolov8l.pt',
-    'YOLOv8x': 'yolov8x.pt',
-    # ── Добавь сюда свою модель ──
-    'YOLOv9c': 'yolov9c.pt',     # YOLOv9
-    'YOLOv10n': 'yolov10n.pt',   # YOLOv10
-    'YOLOv11s': 'yolo11s.pt',    # YOLOv11
+    # Добавь сюда свою модель:
+    'YOLOv9c': 'yolov9c.pt',
 }.get(model_name, f'{model_name.lower()}.pt')
 ```
 
-**3. Если модель не из семейства YOLO** — добавь свой блок в функцию `_yolo_test_worker`:
-
-```python
-# Пример: добавление кастомной модели через PyTorch Hub
-def _yolo_test_worker(job_id, project_id, model_names):
-    for model_name in model_names:
-        if model_name.startswith('YOLO'):
-            # ... существующая логика ...
-            pass
-        elif model_name == 'MyCustomModel':
-            # Загрузка своей модели
-            import torch
-            model = torch.hub.load('repo/path', 'my_model')
-            # Прогон тестовых изображений
-            # ...
-            # Нормировка метрик в шкалу 1-5
+Требует:
+```bash
+pip install ultralytics opencv-python
 ```
-
-**4. Перезапусти сервер** — модель появится в списке для тестирования при условии, что она добавлена в проект как модель типа `detection`.
 
 ### Способ 3 — массовый импорт через CSV
 
-Подготовь CSV-файл вида:
-
-```csv
+```
 model_name,criterion_name,score
 YOLOv9c,Точность ответа,4.6
 YOLOv9c,Скорость ответа,3.8
-YOLOv9c,Устойчивость к шуму,4.4
 ```
 
-На вкладке «Оценки» нажми «📂 Импорт CSV» — оценки загрузятся автоматически.
-
-> Шаблон CSV для проекта можно скачать кнопкой «⬇ Шаблон CSV» — он уже содержит все нужные комбинации модель × критерий.
+Вкладка «Оценки» → «📂 Импорт CSV».
 
 ---
 
 ## Нормировка метрик в шкалу 1–5
 
-Когда добавляешь автоматическое тестирование новой модели, нужно перевести сырые метрики (например, FPS, mAP, размер модели) в шкалу 1–5. Используй те же функции что и для YOLO в `_yolo_test_worker`:
-
 ```python
-# Монотонно возрастающие метрики (больше = лучше)
-# Пример: confidence в [0..1]
+# Монотонно возрастающие (больше = лучше)
 acc_score = round(avg_conf * 5, 2)
 
 # Монотонно убывающие (меньше = лучше)
-# Пример: размер модели в МБ
 size_score = (5.0 if size_mb < 10 else 4.0 if size_mb < 30
               else 3.0 if size_mb < 80 else 2.0)
 
@@ -228,18 +414,26 @@ speed_score = (5.0 if avg_fps >= 30 else 4.0 if avg_fps >= 15
 | POST | `/api/projects/{id}/sensitivity` | Анализ чувствительности |
 | GET | `/api/projects/{id}/report` | Финальный отчёт |
 | **POST** | `/api/projects/{id}/test/start` | **Запустить локальное тестирование** |
-| **GET** | `/api/test/{job_id}` | **Статус тестирования (для polling)** |
+| **GET** | `/api/test/{job_id}` | **Статус тестирования (polling)** |
 
-Полная документация Swagger: **http://localhost:8000/docs**
+Swagger: **http://localhost:8000/docs**
 
 ---
 
 ## Стек
 
-- **Backend**: FastAPI + SQLite (без внешних БД)
-- **Frontend**: HTML/CSS/JS + Chart.js (без сборки)
-- **ML**: ultralytics, torch, transformers (опционально, для локального тестирования)
-- **Запуск**: одна команда, работает на любом ноутбуке
+| Слой | Технология |
+|------|------------|
+| Backend | FastAPI + SQLite |
+| Frontend | HTML/CSS/JS + Chart.js (без сборки) |
+| ML | ultralytics, torch, transformers (опционально) |
+| Запуск | Одна команда, работает на любом ноутбуке |
+
+---
+
+## Contributing
+
+Форкай, создавай ветку, делай PR в `main`. Подробнее — в [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
