@@ -56,11 +56,15 @@
 ### Windows
 
 ```bash
-# Install dependencies
-python -m pip install -r requirements.txt
+# Create a virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
-# Start the server (browser opens automatically)
-python backend/main.py
+# Install dependencies
+pip install -r requirements.txt
+
+# Run
+python3 backend/main.py
 ```
 
 Or double-click `start.bat`.
