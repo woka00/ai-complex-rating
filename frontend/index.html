@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI CharacherHub — Платформа оценки моделей</title>
 
+<!-- Favicon: шестиугольник в цвет акцента на тёмном фоне (повторяет логотип в сайдбаре) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f1a12'/%3E%3Crect x='1' y='1' width='62' height='62' rx='11' fill='none' stroke='%23ffa963' stroke-opacity='.4' stroke-width='2'/%3E%3Cpolygon points='32,14 16.4,23 16.4,41 32,50 47.6,41 47.6,23' fill='none' stroke='%23ffa963' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+
 <!-- Шрифты: IBM Plex Sans для интерфейса, IBM Plex Mono для чисел и кода -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,9 +16,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
-/* ═══════════════════════════════════════════════════════════════════════
+/* ================================================================═══════
    СТИЛИ — единая тёмная тема, переменные CSS для лёгкой смены палитры
-   ═══════════════════════════════════════════════════════════════════════ */
+   ================================================================═══════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 /* Дизайн-токены: цвета фона, текста, акцентов, отступы */
@@ -176,9 +179,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .empty .ei{font-size:36px;margin-bottom:8px;opacity:.5}
 .empty p{font-size:11px;margin-top:4px;color:var(--muted)}
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ================================================================══════
    ВКЛАДКА "ГЛАВНАЯ" — описание проекта
-   ══════════════════════════════════════════════════════════════════════ */
+   ================================================================══════ */
 .hero{background:linear-gradient(135deg,rgba(255, 186, 75, 0.412),rgba(249, 133, 45, 0.462));border:1px solid rgba(0, 0, 0, 0.692);border-radius:var(--r3);padding:36px 28px;margin-bottom:18px}
 .hero h1{font-size:26px;font-weight:600;letter-spacing:-.5px;margin-bottom:10px;color:var(--text)}
 .hero h1 span{color:var(--text)}
@@ -195,9 +198,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .tab-info h5{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
 .tab-info p{font-size:11px;color:var(--muted2);line-height:1.5}
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ================================================================══════
    ВКЛАДКА "МАТЕМАТИКА" — формулы и расчёты
-   ══════════════════════════════════════════════════════════════════════ */
+   ================================================================══════ */
 .formula-block{background:var(--bg3);border-left:3px solid var(--accent);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin:12px 0;font-family:var(--mono);font-size:15px}
 .formula-block .formula-name{font-family:var(--sans);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .formula-block .formula{color:var(--accent-h);line-height:1.8}
@@ -215,9 +218,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .k-interpret-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:var(--r);margin-bottom:4px;font-size:12px}
 .k-interpret-row .k-range{font-family:var(--mono);font-weight:600;min-width:90px}
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ================================================================══════
    ВКЛАДКА "ТЕСТИРОВАНИЕ" — локальный запуск моделей
-   ══════════════════════════════════════════════════════════════════════ */
+   ================================================================══════ */
 .test-progress-card{background:linear-gradient(135deg,rgba(108,99,255,.08),rgba(45,212,160,.04));border:1px solid var(--accent);border-radius:var(--r3);padding:20px;margin-bottom:14px}
 .big-prog{height:14px;background:var(--bg);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:14px 0}
 .big-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-h));border-radius:7px;transition:width .5s ease;position:relative;overflow:hidden}
@@ -236,6 +239,73 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .test-model-chip:hover{border-color:var(--border2);color:var(--text)}
 .test-model-chip.checked{background:var(--accent-glow);border-color:var(--accent);color:var(--accent-h)}
 
+/* ================================================================══════
+   DRAG-AND-DROP — зоны загрузки моделей и датасетов
+   ================================================================══════ */
+.dropzone{border:2px dashed var(--border2);border-radius:var(--r2);padding:22px 18px;
+  text-align:center;cursor:pointer;transition:all .15s;background:var(--bg3);position:relative}
+.dropzone:hover{border-color:var(--accent);background:rgba(255,169,99,.04)}
+.dropzone.drag-over{border-color:var(--accent);background:var(--accent-glow);border-style:solid}
+.dropzone.uploading{pointer-events:none;opacity:.7}
+.dropzone .dz-icon{font-size:28px;margin-bottom:8px;color:var(--accent-h);opacity:.8}
+.dropzone .dz-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.dropzone .dz-hint{font-size:11px;color:var(--muted)}
+.dropzone .dz-progress{height:3px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:10px;display:none}
+.dropzone.uploading .dz-progress{display:block}
+.dropzone .dz-progress-fill{height:100%;background:var(--accent);width:30%;animation:dz-pulse 1s ease-in-out infinite}
+@keyframes dz-pulse{0%{width:15%;margin-left:0}50%{width:35%;margin-left:30%}100%{width:15%;margin-left:85%}}
+.dropzone input[type=file]{display:none}
+.upload-toggle{display:flex;gap:0;margin-bottom:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:2px;width:fit-content}
+.upload-toggle button{padding:5px 14px;background:none;border:none;color:var(--muted);cursor:pointer;
+  border-radius:4px;font-size:11px;font-weight:500;font-family:var(--sans);transition:all .12s}
+.upload-toggle button.active{background:var(--accent);color:#fff}
+.upload-toggle button:hover:not(.active){color:var(--text)}
+.upload-list{margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto}
+.upload-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:var(--r);font-size:11px}
+.upload-item .ui-name{flex:1;font-family:var(--mono);color:var(--accent-h);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upload-item .ui-size{color:var(--muted);font-family:var(--mono);font-size:10px}
+.upload-item .ui-del{background:none;border:none;color:var(--red);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:14px;opacity:.6;transition:opacity .12s}
+.upload-item .ui-del:hover{opacity:1;background:var(--red-bg)}
+
+/* ================================================================══════
+   ВКЛАДКА "МЕТРИКИ" — описание критериев оценки
+   ================================================================══════ */
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);
+  padding:16px 18px;margin-bottom:10px;border-left:3px solid var(--accent)}
+.metric-card.g-accuracy{border-left-color:var(--accent-h)}
+.metric-card.g-robustness{border-left-color:var(--green)}
+.metric-card.g-context{border-left-color:var(--amber)}
+.metric-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.metric-head .mh-name{font-size:13px;font-weight:600;color:var(--text)}
+.metric-head .mh-weight{font-family:var(--mono);font-size:11px;color:var(--accent-h);background:var(--bg3);padding:2px 7px;border-radius:4px}
+.metric-head .mh-group{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:4px}
+.metric-desc{font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:10px}
+.metric-formula{background:var(--bg3);border-radius:var(--r);padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--accent-h);margin-bottom:8px;border-left:2px solid var(--accent)}
+.metric-formula .mf-label{font-family:var(--sans);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.metric-thresholds{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px}
+.metric-th-cell{padding:5px 6px;background:var(--bg3);border-radius:4px;text-align:center;font-family:var(--mono);font-size:10px}
+.metric-th-cell .mt-score{font-size:14px;font-weight:700;display:block;margin-bottom:1px}
+.metric-th-cell .mt-cond{color:var(--muted);font-size:9px}
+.group-header{margin:28px 0 14px;padding:0}
+.group-header:first-of-type{margin-top:14px}
+.group-header .gh-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.group-header .gh-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:1px solid var(--border)}
+.group-header.g-accuracy .gh-icon{background:rgba(255,169,99,.12);border-color:rgba(255,169,99,.35);color:var(--accent-h)}
+.group-header.g-robustness .gh-icon{background:var(--green-bg);border-color:rgba(45,212,160,.35);color:var(--green)}
+.group-header.g-context .gh-icon{background:var(--amber-bg);border-color:rgba(245,166,35,.35);color:var(--amber)}
+.group-header .gh-text{flex:1;min-width:0}
+.group-header h3{font-size:20px;font-weight:600;letter-spacing:-.3px;text-transform:none;margin:0 0 2px;color:var(--text)}
+.group-header.g-accuracy h3{color:var(--accent-h)}
+.group-header.g-robustness h3{color:var(--green)}
+.group-header.g-context h3{color:var(--amber)}
+.group-header .gh-weight{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500;margin-left:10px;letter-spacing:0;text-transform:none}
+.group-header p{font-size:12px;color:var(--muted2);line-height:1.55;padding-left:58px;margin-bottom:10px}
+.group-header .gh-divider{height:2px;background:linear-gradient(90deg,currentColor,transparent);opacity:.35;border-radius:1px}
+.group-header.g-accuracy .gh-divider{color:var(--accent-h)}
+.group-header.g-robustness .gh-divider{color:var(--green)}
+.group-header.g-context .gh-divider{color:var(--amber)}
+
 /* Печать — стилизация для PDF */
 @media print{
   #sidebar,#topbar,.no-print{display:none!important}
@@ -249,9 +319,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <body>
 <div id="app">
 
-<!-- ═══════════════════════════════════════════════════════════════════
+<!-- ================================================================═══
      САЙДБАР: логотип, кнопка "Главная", список проектов
-     ═══════════════════════════════════════════════════════════════════ -->
+     ================================================================═══ -->
 <div id="sidebar">
   <div class="s-logo" onclick="goHome()">
     <div class="s-logo-icon">⬡</div>
@@ -272,9 +342,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
+<!-- ================================================================═══
      ОСНОВНАЯ ОБЛАСТЬ: топбар с вкладками + контент
-     ═══════════════════════════════════════════════════════════════════ -->
+     ================================================================═══ -->
 <div id="main">
   <div id="topbar">
     <div id="proj-title">Главная страница</div>
@@ -285,6 +355,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <button class="tab" data-tab="scores">Оценки</button>
       <button class="tab" data-tab="results">Расчёт K</button>
       <button class="tab" data-tab="math">Математика</button>
+      <button class="tab" data-tab="metrics">Метрики</button>
       <button class="tab" data-tab="testing">Тестирование</button>
       <button class="tab" data-tab="analytics">Аналитика</button>
       <button class="tab" data-tab="comparison">Сравнение</button>
@@ -341,7 +412,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div class="feature-card">
             <div class="fi">🔬</div>
             <h4>Локальное тестирование</h4>
-            <p>Запуск моделей YOLO прямо в браузере. Прогресс-бар, ETA, автоматическая нормировка метрик.</p>
+            <p>Запуск моделей детекции прямо в браузере. Прогресс-бар, ETA, автоматическая нормировка метрик.</p>
           </div>
           <div class="feature-card">
             <div class="fi">📈</div>
@@ -382,7 +453,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
           <div class="tab-info">
             <div class="ti-icon">⚡</div>
-            <div><h5>Тестирование</h5><p>Локальный запуск моделей YOLO с прогресс-баром и автоматической оценкой.</p></div>
+            <div><h5>Тестирование</h5><p>Локальный запуск моделей детекции с прогресс-баром и автоматической оценкой.</p></div>
           </div>
           <div class="tab-info">
             <div class="ti-icon">📊</div>
@@ -455,6 +526,39 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
         </div>
       </div>
+
+      <!-- ── Загрузка моделей drag-and-drop ── -->
+      <div class="card" style="margin-top:14px">
+        <h3>Загрузка моделей локально</h3>
+        <p style="font-size:11px;color:var(--muted2);line-height:1.55;margin-bottom:12px">
+          Перетащи файл модели в зону ниже. <b style="color:var(--text)">Detection</b> — .pt файл (PyTorch checkpoint),
+          сохраняется в <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono)">backend/models/detection/</code>.
+          <b style="color:var(--text)">NLP</b> — ZIP-архив с HuggingFace моделью (config.json + веса .bin/.safetensors + tokenizer),
+          распаковывается в <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono)">backend/models/nlp/&lt;имя&gt;/</code>.
+          После загрузки модель автоматически добавляется в проект.
+        </p>
+
+        <div class="upload-toggle" id="upload-toggle">
+          <button class="active" data-kind="yolo" onclick="setUploadKind('yolo')">Detection (.pt)</button>
+          <button data-kind="nlp" onclick="setUploadKind('nlp')">NLP (.zip)</button>
+        </div>
+
+        <div class="dropzone" id="model-dropzone">
+          <div class="dz-icon">📦</div>
+          <div class="dz-title" id="dz-title">Перетащи .pt файл сюда</div>
+          <div class="dz-hint" id="dz-hint">или кликни чтобы выбрать. Максимум 500 МБ</div>
+          <div class="dz-progress"><div class="dz-progress-fill"></div></div>
+          <input type="file" id="model-file-input">
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+          <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase">Загружено локально</div>
+          <button class="btn btn-ghost" style="padding:3px 8px;font-size:10px" onclick="refreshUploads()">⟳ Обновить</button>
+        </div>
+        <div class="upload-list" id="upload-list">
+          <div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных моделей</div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
@@ -507,24 +611,70 @@ tr:hover td{background:rgba(255,255,255,.015)}
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ВКЛАДКА 6: ЛОКАЛЬНОЕ ТЕСТИРОВАНИЕ — новая вкладка
+         ВКЛАДКА 6: МЕТРИКИ — описание критериев оценки
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panel-metrics">
+      <div id="metrics-body">
+        <div class="empty"><div class="ei">📊</div>Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ВКЛАДКА 7: ЛОКАЛЬНОЕ ТЕСТИРОВАНИЕ
          ═══════════════════════════════════════════════════════════════ -->
     <div class="panel" id="panel-testing">
 
-      <!-- ── YOLO: детекция ── -->
+      <!-- ── Управление датасетами ── -->
       <div class="card" style="margin-bottom:14px">
-        <h3>Локальный запуск моделей детекции (YOLO)</h3>
+        <h3>Тестовый датасет</h3>
+        <p style="font-size:11px;color:var(--muted2);line-height:1.55;margin-bottom:12px">
+          По умолчанию используются встроенные данные (изображения из ultralytics для моделей детекции
+          и 8 встроенных текстов для NLP). Чтобы прогнать модели на своих данных —
+          загрузи датасет ниже и выбери его перед запуском.
+        </p>
+
+        <div class="upload-toggle" id="dataset-toggle">
+          <button class="active" data-kind="images" onclick="setDatasetKind('images')">Изображения (.zip)</button>
+          <button data-kind="texts" onclick="setDatasetKind('texts')">Тексты (.csv)</button>
+        </div>
+
+        <div class="dropzone" id="dataset-dropzone">
+          <div class="dz-icon">📁</div>
+          <div class="dz-title" id="ds-title">Перетащи .zip с изображениями</div>
+          <div class="dz-hint" id="ds-hint">или кликни. ZIP с .jpg/.png — для моделей детекции. Максимум 1 ГБ</div>
+          <div class="dz-progress"><div class="dz-progress-fill"></div></div>
+          <input type="file" id="dataset-file-input">
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+          <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase">Загруженные датасеты</div>
+          <button class="btn btn-ghost" style="padding:3px 8px;font-size:10px" onclick="refreshDatasets()">⟳ Обновить</button>
+        </div>
+        <div class="upload-list" id="dataset-list">
+          <div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных датасетов</div>
+        </div>
+
+        <div class="fr" style="margin-top:14px;align-items:center">
+          <div class="fg" style="flex:1"><label>Использовать датасет при запуске</label>
+            <select id="active-dataset"><option value="">— Встроенный (по умолчанию) —</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Детекция ── -->
+      <div class="card" style="margin-bottom:14px">
+        <h3>Локальный запуск моделей детекции</h3>
         <p style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:14px">
-          Реальный прогон YOLO на тестовых изображениях. Метрики: confidence, FPS, устойчивость к шуму.
+          Реальный прогон моделей детекции на тестовых изображениях. Метрики: confidence, FPS, устойчивость к шуму.
           Веса хранятся в <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent-h)">backend/models/detection/</code>.
           Требует: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent-h)">pip install ultralytics opencv-python</code>
         </p>
         <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:8px">Выберите YOLO-модели</label>
+          <label style="display:block;margin-bottom:8px">Выберите модели детекции</label>
           <div id="test-models-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
         <div class="fr">
-          <button class="btn btn-accent" id="test-start-btn" onclick="startTest()">▶ Запустить YOLO-тест</button>
+          <button class="btn btn-accent" id="test-start-btn" onclick="startTest()">▶ Запустить тест детекции</button>
           <span style="color:var(--muted);font-size:11px;padding:6px 0">Веса скачиваются автоматически при первом запуске</span>
         </div>
       </div>
@@ -533,22 +683,19 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="card" style="margin-bottom:14px">
         <h3>Локальный запуск NLP-моделей (sentiment analysis)</h3>
         <p style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:14px">
-          Тестирование моделей анализа тональности на наборе русскоязычных текстов.
+          Тестирование моделей анализа тональности. Локальные модели грузятся из
+          <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent-h)">backend/models/nlp/&lt;имя&gt;/</code>
+          (если есть), иначе скачиваются с HuggingFace.
           Метрики: accuracy, robustness (зашумлённые тексты), скорость.
-          Кэш моделей — <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent-h)">backend/models/nlp/</code>.
           Требует: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent-h)">pip install transformers torch</code>
         </p>
         <div style="margin-bottom:12px">
           <label style="display:block;margin-bottom:8px">Выберите NLP-модели</label>
           <div id="test-nlp-models-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
-        <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);font-size:11px;color:var(--muted2)">
-          <b style="color:var(--text)">Тестовые тексты:</b> 8 русскоязычных отзывов (позитивные, негативные, нейтральные)
-          + зашумлённые варианты (caps, сленг) для проверки устойчивости.
-        </div>
         <div class="fr">
           <button class="btn btn-accent" id="test-nlp-start-btn" onclick="startNlpTest()">▶ Запустить NLP-тест</button>
-          <span style="color:var(--muted);font-size:11px;padding:6px 0">Модели скачиваются при первом запуске (~30–200 МБ)</span>
+          <span style="color:var(--muted);font-size:11px;padding:6px 0">Локальные модели — мгновенно; HF — скачиваются при первом запуске (~30–200 МБ)</span>
         </div>
       </div>
 
@@ -577,9 +724,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
+<!-- ================================================================═══
      МОДАЛКИ
-     ═══════════════════════════════════════════════════════════════════ -->
+     ================================================================═══ -->
 <div class="mo" id="mo-new-proj">
   <div class="mc">
     <h3>Новый проект</h3>
@@ -610,9 +757,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 <div id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
+<!-- ================================================================═══
      JAVASCRIPT — вся логика SPA
-     ═══════════════════════════════════════════════════════════════════ -->
+     ================================================================═══ -->
 <script>
 /* ── СОСТОЯНИЕ ПРИЛОЖЕНИЯ ── */
 const API='';                    // базовый URL API (пусто = относительные пути)
@@ -621,9 +768,9 @@ let proj=null;                   // объект текущего проекта
 let charts={};                   // экземпляры Chart.js (для destroy() при обновлении)
 let testPollInterval=null;       // setInterval для опроса статуса тестирования
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    API-ОБЁРТКА — единая функция для всех запросов
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function api(m,p,b){
   const o={method:m,headers:{'Content-Type':'application/json'}};
   if(b)o.body=JSON.stringify(b);
@@ -653,9 +800,9 @@ function fdt(s){if(!s)return'—';try{return new Date((s.endsWith('Z')?s:s+'Z'))
 function kc(k){return k>=.9?'var(--green)':k>=.75?'var(--accent-h)':k>=.6?'var(--amber)':'var(--red)'}
 function kbadge(k,lbl){const cls=k>=.9?'bg':k>=.75?'bb':k>=.6?'ba':'br';return`<span class="badge ${cls}">${esc(lbl)}</span>`}
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    НАВИГАЦИЯ: переключение вкладок и переход на главную
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
@@ -669,7 +816,9 @@ document.querySelectorAll('.tab').forEach(t=>{
     if(t.dataset.tab==='analytics')loadAnalytics();
     if(t.dataset.tab==='comparison')loadComparison();
     if(t.dataset.tab==='math')renderMath();
+    if(t.dataset.tab==='metrics')renderMetrics();
     if(t.dataset.tab==='testing')renderTestingTab();
+    if(t.dataset.tab==='overview')refreshUploads();
   });
 });
 
@@ -683,9 +832,9 @@ function goHome(){
   document.querySelectorAll('.proj-item').forEach(el=>el.classList.remove('active'));
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    СПИСОК ПРОЕКТОВ В САЙДБАРЕ
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function loadProjects(){
   const list=await GET('/api/projects').catch(()=>[]);
   const el=document.getElementById('proj-list');
@@ -718,9 +867,9 @@ async function selectProject(id){
   renderOverview(p);
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 1: ОВЕРВЬЮ ПРОЕКТА
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 function renderOverview(p){
   document.getElementById('ov-nm').textContent=p.models.length;
   document.getElementById('ov-nc').textContent=p.criteria.filter(c=>c.enabled).length;
@@ -783,9 +932,9 @@ async function deleteProject(){
   toast('Проект удалён');
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 2: КРИТЕРИИ
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function renderCriteria(){
   const cr=await GET(`/api/projects/${pid}/criteria`);
   // Группируем критерии по группам для красивого вывода
@@ -834,9 +983,9 @@ async function createCrit(){
   renderCriteria();
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 3: ОЦЕНКИ — матрица модели × критерии
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 let pending={};  // изменённые ячейки — копятся пока не нажата кнопка "Сохранить"
 
 async function renderScores(){
@@ -908,9 +1057,9 @@ function dlTemplate(){
   a.click();
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 4: РАСЧЁТ K
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function runCalc(){
   const btn=document.getElementById('calc-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Расчёт...';
@@ -983,9 +1132,9 @@ function gbars(groups,gc){
     </div>`).join('');
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 5: МАТЕМАТИКА — формулы + пошаговый расчёт
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function renderMath(){
   const el=document.getElementById('math-body');
   // Постоянная часть — формулы из ТЗ
@@ -1108,9 +1257,9 @@ async function renderMath(){
   el.innerHTML=html;
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 6: ЛОКАЛЬНОЕ ТЕСТИРОВАНИЕ
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 function renderTestingTab(){
   if(!proj)return;
 
@@ -1122,7 +1271,7 @@ function renderTestingTab(){
         <div class="test-model-chip" data-model="${esc(m.name)}" onclick="this.classList.toggle('checked')">
           <span>${esc(m.name)}</span>
         </div>`).join('')
-    : '<div style="color:var(--muted);font-size:11px">В проекте нет YOLO-моделей. Добавь их на вкладке «Проект».</div>';
+    : '<div style="color:var(--muted);font-size:11px">В проекте нет моделей детекции. Добавь их на вкладке «Проект».</div>';
 
   // ── NLP-чипы: только text-модели из NLP_MODEL_REGISTRY ──
   const knownNlp=['rubert-tiny2','rubert-base','roberta-sentiment','distilbert-ru'];
@@ -1141,7 +1290,7 @@ async function startTest(){
   // YOLO: собираем выбранные .test-model-chip (не NLP)
   const selected=Array.from(document.querySelectorAll('#test-models-list .test-model-chip.checked'))
     .map(el=>el.dataset.model);
-  if(!selected.length){toast('Выбери хотя бы одну YOLO-модель','err');return}
+  if(!selected.length){toast('Выбери хотя бы одну модель детекции','err');return}
 
   const btn=document.getElementById('test-start-btn');
   btn.disabled=true;
@@ -1152,7 +1301,7 @@ async function startTest(){
   }catch(e){
     toast(e.message,'err');
     btn.disabled=false;
-    btn.innerHTML='▶ Запустить YOLO-тест';
+    btn.innerHTML='▶ Запустить тест детекции';
   }
 }
 
@@ -1191,7 +1340,7 @@ function pollTestStatus(jobId, testType='yolo'){
         // Восстанавливаем кнопки
         const yoloBtn=document.getElementById('test-start-btn');
         const nlpBtn=document.getElementById('test-nlp-start-btn');
-        if(yoloBtn){yoloBtn.disabled=false;yoloBtn.innerHTML='▶ Запустить YOLO-тест'}
+        if(yoloBtn){yoloBtn.disabled=false;yoloBtn.innerHTML='▶ Запустить тест детекции'}
         if(nlpBtn){nlpBtn.disabled=false;nlpBtn.innerHTML='▶ Запустить NLP-тест'}
         if(j.status==='done'){
           toast('Тестирование завершено. Оценки записаны.');
@@ -1240,9 +1389,9 @@ function renderTestProgress(j){
   `;
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 7: АНАЛИТИКА — графики Chart.js
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function loadAnalytics(){
   let d;
   try{d=await GET(`/api/projects/${pid}/results`)}
@@ -1322,9 +1471,9 @@ async function loadAnalytics(){
   }).catch(()=>{});
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ВКЛАДКА 8: СРАВНЕНИЕ + АНАЛИЗ ЧУВСТВИТЕЛЬНОСТИ
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 async function loadComparison(){
   let d;
   try{d=await GET(`/api/projects/${pid}/results`)}
@@ -1421,9 +1570,9 @@ async function runSens(){
   }catch(e){el.innerHTML=`<div style="color:var(--red)">${e.message}</div>`}
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    МОДАЛКИ И ИНИЦИАЛИЗАЦИЯ
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.mo').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
@@ -1440,6 +1589,454 @@ async function createProject(){
   await loadProjects();
   selectProject(p.id);
 }
+
+/* ================================================================
+   DRAG-AND-DROP: загрузка моделей (YOLO/NLP) на вкладке Проект
+   ================================================================ */
+let _uploadKind='yolo';  // текущий тип загрузки: yolo | nlp
+
+function setUploadKind(kind){
+  _uploadKind=kind;
+  document.querySelectorAll('#upload-toggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.kind===kind);
+  });
+  const t=document.getElementById('dz-title');
+  const h=document.getElementById('dz-hint');
+  if(kind==='yolo'){
+    t.textContent='Перетащи .pt файл сюда';
+    h.textContent='или кликни чтобы выбрать. Максимум 500 МБ';
+    document.getElementById('model-file-input').accept='.pt';
+  }else{
+    t.textContent='Перетащи .zip с NLP-моделью сюда';
+    h.textContent='ZIP должен содержать config.json + веса .bin/.safetensors. Максимум 2 ГБ';
+    document.getElementById('model-file-input').accept='.zip';
+  }
+}
+
+/* Универсальная привязка drag-and-drop к dropzone */
+function bindDropzone(zoneId, inputId, onFile){
+  const zone=document.getElementById(zoneId);
+  const input=document.getElementById(inputId);
+  if(!zone||!input)return;
+  zone.onclick=()=>{if(!zone.classList.contains('uploading'))input.click()};
+  input.onchange=e=>{const f=e.target.files[0]; if(f)onFile(f); input.value=''};
+  ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('drag-over');
+  }));
+  ['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag-over');
+  }));
+  zone.addEventListener('drop',e=>{
+    const f=e.dataTransfer.files[0];
+    if(f)onFile(f);
+  });
+}
+
+async function handleModelUpload(file){
+  const zone=document.getElementById('model-dropzone');
+  zone.classList.add('uploading');
+  const t=document.getElementById('dz-title');
+  const prevText=t.textContent;
+  t.textContent=`Загрузка ${file.name}...`;
+  try{
+    const fd=new FormData(); fd.append('file', file);
+    const url=_uploadKind==='yolo' ? '/api/upload/yolo' : '/api/upload/nlp';
+    const r=await fetch(API+url,{method:'POST',body:fd});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({detail:'Ошибка загрузки'}));
+      throw new Error(err.detail||'Ошибка загрузки');
+    }
+    const data=await r.json();
+    toast(`Загружено: ${data.name||data.suggested_name}`);
+
+    // Если выбран проект — автоматически добавляем модель в проект
+    if(pid){
+      const name=data.suggested_name||data.name;
+      const model_type=_uploadKind==='yolo' ? 'detection' : 'text';
+      try{
+        await POST(`/api/projects/${pid}/models`,{name, model_type, description: `Загружено локально (${(data.size_mb||0).toFixed(1)} МБ)`});
+        toast(`Модель «${name}» добавлена в проект`);
+        selectProject(pid);
+      }catch(e){
+        // Модель уже могла быть в проекте — это ок
+        console.warn('Не удалось добавить в проект:',e);
+      }
+    }
+    refreshUploads();
+  }catch(e){
+    toast(e.message||'Ошибка','err');
+  }finally{
+    zone.classList.remove('uploading');
+    t.textContent=prevText;
+  }
+}
+
+async function refreshUploads(){
+  const list=document.getElementById('upload-list');
+  if(!list)return;
+  try{
+    const [yolo,nlp]=await Promise.all([
+      GET('/api/uploads/yolo').catch(()=>[]),
+      GET('/api/uploads/nlp').catch(()=>[]),
+    ]);
+    if(!yolo.length && !nlp.length){
+      list.innerHTML='<div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных моделей</div>';
+      return;
+    }
+    let html='';
+    yolo.forEach(m=>{
+      html+=`<div class="upload-item">
+        <span class="badge bb">DET</span>
+        <span class="ui-name">${esc(m.filename)}</span>
+        <span class="ui-size">${m.size_mb.toFixed(1)} МБ</span>
+        <button class="ui-del" onclick="delUpload('yolo','${esc(m.filename)}')" title="Удалить">×</button>
+      </div>`;
+    });
+    nlp.forEach(m=>{
+      html+=`<div class="upload-item">
+        <span class="badge bp">NLP</span>
+        <span class="ui-name">${esc(m.name)}</span>
+        <span class="ui-size">${m.size_mb.toFixed(1)} МБ</span>
+        <button class="ui-del" onclick="delUpload('nlp','${esc(m.name)}')" title="Удалить">×</button>
+      </div>`;
+    });
+    list.innerHTML=html;
+  }catch(e){
+    list.innerHTML=`<div style="color:var(--red);font-size:11px">${esc(e.message)}</div>`;
+  }
+}
+
+async function delUpload(kind, name){
+  if(!confirm(`Удалить ${name}?`))return;
+  try{
+    await DEL(`/api/uploads/${kind}/${encodeURIComponent(name)}`);
+    toast('Удалено');
+    refreshUploads();
+  }catch(e){toast(e.message,'err')}
+}
+
+/* ================================================================
+   DRAG-AND-DROP: загрузка датасетов на вкладке Тестирование
+   ================================================================ */
+let _datasetKind='images';
+
+function setDatasetKind(kind){
+  _datasetKind=kind;
+  document.querySelectorAll('#dataset-toggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.kind===kind);
+  });
+  const t=document.getElementById('ds-title');
+  const h=document.getElementById('ds-hint');
+  if(kind==='images'){
+    t.textContent='Перетащи .zip с изображениями';
+    h.textContent='ZIP с .jpg/.png — для тестирования моделей детекции. Максимум 1 ГБ';
+    document.getElementById('dataset-file-input').accept='.zip';
+  }else{
+    t.textContent='Перетащи .csv с текстами';
+    h.textContent='CSV с колонками text,label (label = pos/neg/neu) — для NLP';
+    document.getElementById('dataset-file-input').accept='.csv';
+  }
+}
+
+async function handleDatasetUpload(file){
+  const zone=document.getElementById('dataset-dropzone');
+  zone.classList.add('uploading');
+  const t=document.getElementById('ds-title');
+  const prev=t.textContent;
+  t.textContent=`Загрузка ${file.name}...`;
+  try{
+    const fd=new FormData(); fd.append('file', file);
+    const r=await fetch(`${API}/api/datasets/upload?kind=${_datasetKind}`,{method:'POST',body:fd});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({detail:'Ошибка загрузки'}));
+      throw new Error(err.detail||'Ошибка');
+    }
+    const data=await r.json();
+    toast(`Датасет «${data.name}» загружен (${data.count} элементов)`);
+    refreshDatasets();
+  }catch(e){
+    toast(e.message||'Ошибка','err');
+  }finally{
+    zone.classList.remove('uploading');
+    t.textContent=prev;
+  }
+}
+
+async function refreshDatasets(){
+  const list=document.getElementById('dataset-list');
+  const select=document.getElementById('active-dataset');
+  if(!list||!select)return;
+  try{
+    const items=await GET('/api/datasets');
+    if(!items.length){
+      list.innerHTML='<div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных датасетов</div>';
+      select.innerHTML='<option value="">— Встроенный (по умолчанию) —</option>';
+      return;
+    }
+    const prev=select.value;
+    list.innerHTML=items.map(ds=>`
+      <div class="upload-item">
+        <span class="badge ${ds.kind==='images'?'bb':'bp'}">${ds.kind==='images'?'IMG':'TXT'}</span>
+        <span class="ui-name">${esc(ds.name)}</span>
+        <span class="ui-size">${ds.count} шт</span>
+        <button class="ui-del" onclick="delDataset('${esc(ds.name)}')" title="Удалить">×</button>
+      </div>
+    `).join('');
+    select.innerHTML='<option value="">— Встроенный (по умолчанию) —</option>'+
+      items.map(ds=>`<option value="${esc(ds.name)}">${esc(ds.name)} (${ds.kind}, ${ds.count})</option>`).join('');
+    if(prev && items.find(x=>x.name===prev)) select.value=prev;
+  }catch(e){
+    list.innerHTML=`<div style="color:var(--red);font-size:11px">${esc(e.message)}</div>`;
+  }
+}
+
+async function delDataset(name){
+  if(!confirm(`Удалить датасет «${name}»?`))return;
+  try{
+    await DEL(`/api/datasets/${encodeURIComponent(name)}`);
+    toast('Удалено');
+    refreshDatasets();
+  }catch(e){toast(e.message,'err')}
+}
+
+/* Перехват startTest и startNlpTest чтобы прокинуть выбранный dataset */
+const _origStartTest=startTest;
+const _origStartNlpTest=startNlpTest;
+async function _startWithDataset(originalFn, type){
+  const ds=document.getElementById('active-dataset')?.value||'';
+  // Подменяем POST на время вызова чтобы прокинуть dataset в тело
+  const origPOST=window.POST;
+  window.POST=async(path,body)=>{
+    if((path.endsWith('/test/start')||path.endsWith('/test/nlp/start')) && ds){
+      body={...body, dataset: ds};
+    }
+    return origPOST(path,body);
+  };
+  try{ await originalFn(); }
+  finally{ window.POST=origPOST; }
+}
+startTest=()=>_startWithDataset(_origStartTest,'yolo');
+startNlpTest=()=>_startWithDataset(_origStartNlpTest,'nlp');
+
+/* ================================================================
+   ВКЛАДКА МЕТРИКИ — описание каждого критерия с формулами расчёта
+   ================================================================ */
+const METRICS_DATA=[
+  // ── Группа: Точность (accuracy) ──
+  {group:'accuracy', name:'Точность ответа', weight:0.30,
+   desc:'Насколько модель верно решает основную задачу: для детекции — уверенность '+
+        'в обнаруженных объектах, для NLP — доля правильно классифицированных текстов.',
+   yolo:'score = mean(confidence) × 5 — средняя уверенность модели по детекциям на тестовых картинках',
+   nlp:'score = accuracy × 5, где accuracy = (правильных предсказаний) / (всего текстов)',
+   thresholds:[
+     {s:5,c:'≥0.90'},{s:4,c:'0.75–0.89'},{s:3,c:'0.60–0.74'},{s:2,c:'0.40–0.59'},{s:1,c:'<0.40'}
+   ]},
+  {group:'accuracy', name:'Глубина и полнота', weight:0.20,
+   desc:'Способность модели охватывать все аспекты задачи — для детекции это число '+
+        'найденных объектов на кадр, для NLP — полнота анализа (recall).',
+   yolo:'score = min(avg_detections / 3, 1) × 5 — нормированное число объектов на изображение',
+   nlp:'score = (accuracy + confidence) / 2 × 5 — среднее уверенности и точности',
+   thresholds:[
+     {s:5,c:'≥3 объекта'},{s:4,c:'2–3'},{s:3,c:'1–2'},{s:2,c:'<1'},{s:1,c:'нет'}
+   ]},
+  {group:'accuracy', name:'Логичность и структура', weight:0.15,
+   desc:'Структурированность вывода модели. Для детекции — корректность bbox '+
+        '(детекция всегда структурирована), для NLP — связность аргументации.',
+   yolo:'score = 4.0 (детекция всегда возвращает структурированный JSON с bbox)',
+   nlp:'score = avg_confidence × 5 — уверенность отражает консистентность ответа',
+   thresholds:[
+     {s:5,c:'≥0.95'},{s:4,c:'0.80–0.94'},{s:3,c:'0.65–0.79'},{s:2,c:'0.40–0.64'},{s:1,c:'<0.40'}
+   ]},
+  {group:'accuracy', name:'Гибкость интерпретации', weight:0.15,
+   desc:'Способность обрабатывать неоднозначные/нестандартные данные. Для NLP — '+
+        'правильная классификация сленга и шумных текстов; для CV — обработка размытых сцен.',
+   yolo:'score = 3.5 — фиксированное значение, оценивается косвенно через устойчивость',
+   nlp:'score = (robustness × 0.9) × 5 — производное от точности на зашумлённых текстах',
+   thresholds:[
+     {s:5,c:'все варианты'},{s:4,c:'80%'},{s:3,c:'60%'},{s:2,c:'40%'},{s:1,c:'<40%'}
+   ]},
+  // ── Группа: Устойчивость (robustness) ──
+  {group:'robustness', name:'Устойчивость к шуму', weight:0.20,
+   desc:'Стабильность работы модели при искажённых входных данных. Для моделей детекции — гауссов '+
+        'шум на изображении, для NLP — CAPS, опечатки, сленг.',
+   yolo:'ratio = avg_detections_noise / avg_detections_clean; score = ratio_to_5(ratio)',
+   nlp:'score = (правильных предсказаний на CAPS-текстах) / N × 5',
+   thresholds:[
+     {s:5,c:'ratio ≥ 0.9'},{s:4,c:'≥ 0.75'},{s:3,c:'≥ 0.55'},{s:2,c:'≥ 0.35'},{s:1,c:'< 0.35'}
+   ]},
+  {group:'robustness', name:'Обработка сложных задач', weight:0.15,
+   desc:'Работа с многоэтапными и составными запросами — комбинация точности и устойчивости.',
+   yolo:'score = accuracy_score × 0.9 — производное от точности с поправкой',
+   nlp:'score = (accuracy + robustness) / 2 × 5 — среднее точности и устойчивости',
+   thresholds:[
+     {s:5,c:'отлично'},{s:4,c:'хорошо'},{s:3,c:'удовл.'},{s:2,c:'слабо'},{s:1,c:'неуд.'}
+   ]},
+  {group:'robustness', name:'Скорость ответа', weight:0.10,
+   desc:'Время инференса на CPU — критично для real-time применения и масштабирования. '+
+        'Измеряется в FPS (кадров/сек) для CV или мс/токен для NLP.',
+   yolo:'fps = 1 / mean(inference_time); пороги: ≥30=5, ≥15=4, ≥5=3, ≥2=2, <2=1',
+   nlp:'avg_ms = mean(время на текст); <50мс=5, <150=4, <400=3, <800=2, ≥800=1',
+   thresholds:[
+     {s:5,c:'<50 мс'},{s:4,c:'<150 мс'},{s:3,c:'<400 мс'},{s:2,c:'<800 мс'},{s:1,c:'≥800 мс'}
+   ]},
+  // ── Группа: Контекст (context) ──
+  {group:'context', name:'Контекстная согласованность', weight:0.15,
+   desc:'Сохранение связи с контекстом задачи. Для CV — корректность классов в сцене, '+
+        'для NLP — точность классификации в основном корпусе текстов.',
+   yolo:'score = 3.5 — фиксированное значение (детекция оперирует фиксированным набором классов)',
+   nlp:'score = accuracy_score — производная от основной точности на чистых текстах',
+   thresholds:[
+     {s:5,c:'≥0.90'},{s:4,c:'0.75–0.89'},{s:3,c:'0.60–0.74'},{s:2,c:'0.40–0.59'},{s:1,c:'<0.40'}
+   ]},
+  {group:'context', name:'Адаптивность', weight:0.10,
+   desc:'Подстройка под специфику конкретной задачи без полного переобучения — '+
+        'fine-tuning, prompt engineering, доменная адаптация.',
+   yolo:'score = 3.0 — фиксированное значение (модели детекции требуют переобучения для новых классов)',
+   nlp:'score = robustness × 0.85 × 5 — модели хорошо переносят шум → адаптируются',
+   thresholds:[
+     {s:5,c:'zero-shot'},{s:4,c:'few-shot'},{s:3,c:'fine-tune'},{s:2,c:'partial'},{s:1,c:'retrain'}
+   ]},
+  {group:'context', name:'Компактность модели', weight:0.10,
+   desc:'Размер модели в МБ и требования к памяти. Важно для edge-устройств, мобильных '+
+        'приложений и параллельного запуска нескольких моделей.',
+   yolo:'размер .pt файла на диске; <10МБ=5, <30=4, <80=3, остальное=2',
+   nlp:'число параметров (млн); <30M=5, <80M=4, <150M=3, <300M=2, ≥300M=1',
+   thresholds:[
+     {s:5,c:'<10 МБ'},{s:4,c:'<30 МБ'},{s:3,c:'<80 МБ'},{s:2,c:'<200 МБ'},{s:1,c:'≥200 МБ'}
+   ]},
+];
+const GROUP_INFO={
+  accuracy:{name:'Точность', icon:'🎯', color:'var(--accent-h)',
+    desc:'Насколько верно модель решает основную задачу. Самая важная группа (суммарный вес 0.80) — '+
+         'включает основную точность, полноту, структурированность вывода и работу с неоднозначностью.'},
+  robustness:{name:'Устойчивость', icon:'🛡', color:'var(--green)',
+    desc:'Стабильность модели в нестандартных условиях: шум, сложные запросы, ограниченное время. '+
+         'Суммарный вес 0.45 — отвечает за надёжность модели в продакшене.'},
+  context:{name:'Контекст и практичность', icon:'🔗', color:'var(--amber)',
+    desc:'Применимость к конкретной задаче: соответствие контексту, способность адаптироваться, '+
+         'размер. Суммарный вес 0.35 — определяет, насколько удобно использовать модель.'},
+};
+
+function renderMetrics(){
+  const el=document.getElementById('metrics-body');
+  if(!el)return;
+  let html=`
+    <div class="card" style="margin-bottom:14px">
+      <h3>Как устроена оценка моделей</h3>
+      <p style="font-size:12px;color:var(--muted2);line-height:1.7">
+        Каждая модель оценивается по <b style="color:var(--text)">10 критериям</b>, разбитым на
+        <b style="color:var(--text)">3 группы</b>: точность, устойчивость и контекст.
+        Каждый критерий имеет вес <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono);color:var(--accent-h)">w<sub>i</sub></code>
+        (важность для конкретной задачи) и оценку <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono);color:var(--accent-h)">a<sub>ik</sub></code>
+        в шкале <b style="color:var(--text)">1–5</b>. Итоговый коэффициент K считается по формуле
+        K<sub>k</sub> = Σ(w<sub>i</sub>×a<sub>ik</sub>) / (5×Σw<sub>i</sub>), см. вкладку «Математика».
+      </p>
+      <p style="font-size:12px;color:var(--muted2);line-height:1.7;margin-top:10px">
+        Ниже расписано, что значит каждый критерий, как его метрика рассчитывается для моделей детекции
+        и NLP-моделей, и какие пороги используются для нормировки сырого значения в шкалу 1–5.
+      </p>
+    </div>
+  `;
+
+  // Группируем критерии и выводим
+  Object.entries(GROUP_INFO).forEach(([gKey,gInfo])=>{
+    const inGroup=METRICS_DATA.filter(m=>m.group===gKey);
+    const totalW=inGroup.reduce((s,m)=>s+m.weight,0);
+    html+=`
+      <section class="group-header g-${gKey}">
+        <div class="gh-bar">
+          <div class="gh-icon">${gInfo.icon}</div>
+          <div class="gh-text">
+            <h3>${esc(gInfo.name)}<span class="gh-weight">Σw = ${totalW.toFixed(2)} · ${inGroup.length} критерия</span></h3>
+          </div>
+        </div>
+        <p>${esc(gInfo.desc)}</p>
+        <div class="gh-divider"></div>
+      </section>
+    `;
+    inGroup.forEach(m=>{
+      const gColor=gKey==='accuracy'?'bb':gKey==='robustness'?'bg':'ba';
+      html+=`
+        <div class="metric-card g-${gKey}">
+          <div class="metric-head">
+            <span class="mh-name">${esc(m.name)}</span>
+            <span class="mh-weight">w = ${m.weight}</span>
+            <span class="badge ${gColor} mh-group">${GROUP_INFO[gKey].name}</span>
+          </div>
+          <div class="metric-desc">${esc(m.desc)}</div>
+          <div class="metric-formula">
+            <div class="mf-label">Расчёт для моделей детекции</div>
+            ${esc(m.yolo)}
+          </div>
+          <div class="metric-formula" style="border-left-color:var(--green)">
+            <div class="mf-label">Расчёт для NLP (тексты)</div>
+            ${esc(m.nlp)}
+          </div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px;font-weight:600">Нормировка в оценку 1–5</div>
+          <div class="metric-thresholds">
+            ${m.thresholds.map(t=>{
+              const col=t.s===5?'var(--green)':t.s===4?'var(--accent-h)':t.s===3?'var(--amber)':t.s===2?'#f5a050':'var(--red)';
+              return `<div class="metric-th-cell">
+                <span class="mt-score" style="color:${col}">${t.s}</span>
+                <span class="mt-cond">${esc(t.c)}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+  });
+
+  // Сводная таблица влияния
+  html+=`
+    <div class="card" style="margin-top:14px">
+      <h3>Влияние критериев на итоговый K</h3>
+      <p style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:12px">
+        Максимальный вклад каждого критерия в K = w<sub>i</sub> × 5 / S<sub>max</sub> × 100%.
+        Если все веса в сумме = 1, то максимальный вклад критерия в K равен его весу.
+      </p>
+      <div class="tw"><table>
+        <thead><tr><th>Критерий</th><th>Группа</th><th style="text-align:center">Вес w<sub>i</sub></th><th style="text-align:center">Макс. вклад в K</th></tr></thead>
+        <tbody>
+          ${METRICS_DATA.map(m=>{
+            const gn=GROUP_INFO[m.group].name;
+            const gColor=GROUP_INFO[m.group].color;
+            return `<tr>
+              <td style="font-size:12px">${esc(m.name)}</td>
+              <td><span style="color:${gColor};font-size:11px">${gn}</span></td>
+              <td style="text-align:center;font-family:var(--mono)">${m.weight}</td>
+              <td style="text-align:center">
+                <div style="display:inline-flex;align-items:center;gap:8px">
+                  <span style="font-family:var(--mono);color:${gColor};font-weight:600">${(m.weight*100).toFixed(0)}%</span>
+                  <div style="width:80px;height:5px;background:var(--bg3);border-radius:2px;overflow:hidden">
+                    <div style="height:100%;width:${m.weight*100}%;background:${gColor}"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+
+  el.innerHTML=html;
+}
+
+/* ================================================================
+   ИНИЦИАЛИЗАЦИЯ DRAG-AND-DROP И ЗАГРУЗКА СПИСКОВ
+   ================================================================ */
+document.addEventListener('DOMContentLoaded',()=>{
+  bindDropzone('model-dropzone','model-file-input',handleModelUpload);
+  bindDropzone('dataset-dropzone','dataset-file-input',handleDatasetUpload);
+});
+// Если DOMContentLoaded уже отработал (наш скрипт в конце body) — биндим сразу
+bindDropzone('model-dropzone','model-file-input',handleModelUpload);
+bindDropzone('dataset-dropzone','dataset-file-input',handleDatasetUpload);
+
+// Подгружаем списки в фоне
+refreshUploads();
+refreshDatasets();
 
 // Старт: загружаем проекты в сайдбар, показываем главную
 loadProjects();

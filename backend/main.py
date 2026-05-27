@@ -34,7 +34,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from pathlib import Path
-import sqlite3, json, csv, io, os, uuid, time, threading
+import sqlite3, json, csv, io, os, uuid, time, threading, zipfile, shutil, re
 
 # ════════════════════════════════════════════════════════════════════════════
 # КОНСТАНТЫ — ПУТИ К ПАПКАМ МОДЕЛЕЙ
@@ -53,6 +53,11 @@ YOLO_MODELS_DIR = Path(os.getenv("YOLO_MODELS_DIR", str(_BASE_DIR / "models" / "
 # Переопределить: NLP_MODELS_DIR = Path("/другой/путь/nlp")
 NLP_MODELS_DIR = Path(os.getenv("NLP_MODELS_DIR", str(_BASE_DIR / "models" / "nlp")))
 
+# Папка для пользовательских датасетов (загружаются через UI drag-and-drop)
+# Структура: datasets/<имя>/images/*.jpg или datasets/<имя>/texts.csv
+# Переопределить: DATASETS_DIR = Path("/другой/путь/datasets")
+DATASETS_DIR = Path(os.getenv("DATASETS_DIR", str(_BASE_DIR / "datasets")))
+
 # Путь к БД SQLite
 # Переопределить: DB_PATH = "/другой/путь/ai_eval.db"
 DB_PATH = os.getenv("DB_PATH", str(_BASE_DIR / "ai_eval.db"))
@@ -60,6 +65,7 @@ DB_PATH = os.getenv("DB_PATH", str(_BASE_DIR / "ai_eval.db"))
 # Создаём папки если их нет (при первом запуске)
 YOLO_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 NLP_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Инициализация FastAPI ───────────────────────────────────────────────────
 app = FastAPI(title="AI CharacherHub", version="2.0.0", docs_url="/docs")
@@ -199,8 +205,11 @@ class SensitivityRequest(APIModel):
     delta:        float = Field(0.1, ge=0.01, le=0.5)
 
 class TestStartRequest(APIModel):
-    """Запрос на запуск локального тестирования YOLO."""
+    """Запрос на запуск локального тестирования YOLO / NLP."""
     model_names: List[str]
+    # Имя кастомного датасета из DATASETS_DIR (опционально).
+    # Если None — используются встроенные тестовые данные.
+    dataset: Optional[str] = None
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -666,19 +675,21 @@ def _update_job(job_id: str, **fields):
                      list(fields.values()) + [job_id])
 
 
-def _yolo_test_worker(job_id: str, project_id: int, model_names: list):
+def _yolo_test_worker(job_id: str, project_id: int, model_names: list, dataset: Optional[str] = None):
     """
     Фоновый поток для прогона YOLO-моделей.
-    
+
     Алгоритм:
     1. Для каждой модели:
-       - Загружаем веса (скачиваются автоматически с GitHub если их нет)
-       - Прогоняем на 5 тестовых картинках (встроенные в ultralytics)
+       - Загружаем веса (скачиваются автоматически с GitHub если их нет,
+         либо берутся из YOLO_MODELS_DIR — например, загруженные через drag-and-drop)
+       - Прогоняем на изображениях: встроенные ultralytics ASSETS либо
+         кастомный датасет из DATASETS_DIR/<dataset>/images/
        - На каждой картинке: чистый прогон + прогон с гауссовым шумом
        - Собираем метрики: confidence, FPS, размер модели, устойчивость к шуму
     2. Нормируем сырые метрики в оценки 1–5
     3. Сохраняем оценки в БД через UPSERT
-    
+
     Прогресс обновляется после каждого изображения,
     ETA считается линейной экстраполяцией прошедшего времени.
     """
@@ -694,13 +705,28 @@ def _yolo_test_worker(job_id: str, project_id: int, model_names: list):
                         log=f'Ошибка импорта: {e}\nУстановите: pip install ultralytics opencv-python numpy')
             return
 
-        # Встроенные тестовые изображения (zidane.jpg, bus.jpg и т.д.)
-        test_images = list(ASSETS.glob("*.jpg"))[:5]
+        # Тестовые изображения: из dataset или встроенные
+        test_images = []
+        dataset_label = ''
+        if dataset:
+            safe = _safe_name(dataset)
+            ds_img_dir = DATASETS_DIR / safe / "images"
+            if ds_img_dir.is_dir():
+                for ext in ('*.jpg', '*.jpeg', '*.png', '*.bmp', '*.webp'):
+                    test_images.extend(ds_img_dir.glob(ext))
+                test_images = sorted(test_images)[:30]  # лимит чтобы не висло
+                dataset_label = f' (датасет: {dataset}, {len(test_images)} фото)'
+
+        if not test_images:
+            # Fallback: встроенные тестовые изображения (zidane.jpg, bus.jpg)
+            test_images = list(ASSETS.glob("*.jpg"))[:5]
+            dataset_label = f' ({len(test_images)} встроенных изображений)'
+
         if not test_images:
             _update_job(job_id, status='error', log='Не найдены тестовые изображения')
             return
 
-        log_lines = [f'Начало тестирования: {len(model_names)} моделей × {len(test_images)} изображений']
+        log_lines = [f'Начало тестирования: {len(model_names)} моделей × {len(test_images)} изображений{dataset_label}']
         # Каждая картинка проходит 2 этапа: чистый + зашумлённый
         total_steps = len(model_names) * len(test_images) * 2
         current_step = 0
@@ -860,7 +886,7 @@ def start_test(pid: int, req: TestStartRequest):
     # Запускаем тестирование в фоновом потоке (не блокирует API)
     thread = threading.Thread(
         target=_yolo_test_worker,
-        args=(job_id, pid, req.model_names),
+        args=(job_id, pid, req.model_names, req.dataset),
         daemon=True  # daemon = поток умрёт вместе с сервером
     )
     thread.start()
@@ -917,14 +943,42 @@ NLP_MODEL_REGISTRY = {
 }
 
 
-def _nlp_test_worker(job_id: str, project_id: int, model_names: list):
+def _load_nlp_test_texts(dataset: Optional[str]) -> list:
+    """
+    Возвращает список (text, expected_label) для NLP-тестирования.
+    Если dataset указан и файл DATASETS_DIR/<dataset>/texts.csv существует,
+    загружает оттуда; иначе — встроенный NLP_TEST_TEXTS.
+    """
+    if not dataset:
+        return NLP_TEST_TEXTS
+    safe = _safe_name(dataset)
+    csv_path = DATASETS_DIR / safe / "texts.csv"
+    if not csv_path.exists():
+        return NLP_TEST_TEXTS
+    items = []
+    try:
+        with open(csv_path, encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                t = (row.get('text') or '').strip()
+                l = (row.get('label') or '').strip().lower()
+                if t and l in ('pos', 'neg', 'neu'):
+                    items.append((t, l))
+    except Exception:
+        return NLP_TEST_TEXTS
+    return items or NLP_TEST_TEXTS
+
+
+def _nlp_test_worker(job_id: str, project_id: int, model_names: list, dataset: Optional[str] = None):
     """
     Фоновый поток для тестирования NLP-моделей.
 
     Алгоритм:
-    1. Для каждой модели загружаем pipeline через HuggingFace transformers.
-       Кэш — NLP_MODELS_DIR (backend/models/nlp/), не засоряет системный кэш.
-    2. Прогоняем NLP_TEST_TEXTS: чистые тексты + зашумлённые (опечатки/caps).
+    1. Для каждой модели сначала проверяем локальную папку NLP_MODELS_DIR/<имя>/.
+       Если есть config.json — грузим оттуда (offline). Иначе берём из реестра
+       NLP_MODEL_REGISTRY и качаем через HuggingFace.
+    2. Прогоняем тестовые тексты (встроенные либо из dataset/texts.csv).
+       Каждый текст — в оригинале + в CAPS (имитация шума).
     3. Считаем: accuracy (верных предсказаний), confidence, скорость, размер.
     4. Нормируем в шкалу 1–5 и записываем через UPSERT в таблицу scores.
     """
@@ -937,35 +991,48 @@ def _nlp_test_worker(job_id: str, project_id: int, model_names: list):
                         log=f'Ошибка импорта: {e}\nУстановите: pip install transformers torch')
             return
 
-        log_lines = [f'Начало NLP-тестирования: {len(model_names)} моделей × {len(NLP_TEST_TEXTS)} текстов']
-        total_steps = len(model_names) * len(NLP_TEST_TEXTS)
+        # Тестовые тексты: из dataset или встроенные
+        test_texts = _load_nlp_test_texts(dataset)
+        ds_label = f' (датасет: {dataset}, {len(test_texts)} текстов)' if dataset else f' ({len(test_texts)} встроенных текстов)'
+        log_lines = [f'Начало NLP-тестирования: {len(model_names)} моделей × {len(test_texts)} текстов{ds_label}']
+        total_steps = len(model_names) * len(test_texts)
         current_step = 0
         start_time = time.time()
         results = {}
 
         for model_name in model_names:
-            # Получаем HuggingFace model id из реестра
-            hf_model_id = NLP_MODEL_REGISTRY.get(model_name)
-            if not hf_model_id:
-                log_lines.append(f'  ✗ {model_name}: не найден в NLP_MODEL_REGISTRY')
-                _update_job(job_id, log='\n'.join(log_lines))
-                continue
+            # 1) Локальная папка имеет приоритет
+            local_dir = NLP_MODELS_DIR / _safe_name(model_name)
+            use_local = local_dir.is_dir() and (local_dir / 'config.json').exists()
+
+            if use_local:
+                model_source = str(local_dir)
+                source_label = f'локально ({local_dir.name})'
+            else:
+                # 2) Иначе — HuggingFace из реестра
+                hf_model_id = NLP_MODEL_REGISTRY.get(model_name)
+                if not hf_model_id:
+                    log_lines.append(f'  ✗ {model_name}: не найден локально и не в NLP_MODEL_REGISTRY')
+                    _update_job(job_id, log='\n'.join(log_lines))
+                    continue
+                model_source = hf_model_id
+                source_label = f'HuggingFace ({hf_model_id})'
 
             try:
-                log_lines.append(f'\n[{model_name}] Загрузка {hf_model_id}...')
+                log_lines.append(f'\n[{model_name}] Загрузка из {source_label}...')
                 _update_job(job_id, log='\n'.join(log_lines), status='running')
 
                 # Указываем кэш в нашу папку NLP_MODELS_DIR
                 pipe = pipeline(
                     'sentiment-analysis',
-                    model=hf_model_id,
+                    model=model_source,
                     truncation=True,
                     cache_dir=str(NLP_MODELS_DIR),
                 )
 
                 times, confs, correct, robust_correct = [], [], 0, 0
 
-                for text, expected_label in NLP_TEST_TEXTS:
+                for text, expected_label in test_texts:
                     # ── Чистый прогон ──
                     t0 = time.time()
                     out = pipe(text)[0]
@@ -989,7 +1056,7 @@ def _nlp_test_worker(job_id: str, project_id: int, model_names: list):
                     _update_job(job_id, progress=progress, eta_seconds=round(eta, 1))
 
                 # ── Агрегированные метрики ──
-                n = len(NLP_TEST_TEXTS)
+                n = len(test_texts)
                 accuracy   = correct / n         # доля верных ответов [0..1]
                 robustness = robust_correct / n  # то же на зашумлённых
                 avg_conf   = sum(confs) / len(confs)
@@ -1067,7 +1134,8 @@ def _nlp_test_worker(job_id: str, project_id: int, model_names: list):
 def start_nlp_test(pid: int, req: TestStartRequest):
     """
     Запустить локальное тестирование NLP-моделей.
-    Модели кэшируются в backend/models/nlp/.
+    Модели грузятся либо локально (NLP_MODELS_DIR/<имя>/), либо из реестра.
+    Если req.dataset указан — используются тексты из DATASETS_DIR/<dataset>/texts.csv.
     Возвращает job_id — фронтенд опрашивает /api/test/{job_id} для прогресса.
     """
     job_id = str(uuid.uuid4())
@@ -1079,11 +1147,293 @@ def start_nlp_test(pid: int, req: TestStartRequest):
         )
     thread = threading.Thread(
         target=_nlp_test_worker,
-        args=(job_id, pid, req.model_names),
+        args=(job_id, pid, req.model_names, req.dataset),
         daemon=True
     )
     thread.start()
     return {"job_id": job_id, "status": "started"}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# UPLOAD ENDPOINTS — загрузка моделей и датасетов через drag-and-drop
+# ════════════════════════════════════════════════════════════════════════════
+# Эндпоинты для загрузки .pt-весов YOLO, ZIP-архивов NLP-моделей и датасетов.
+# Файлы сохраняются в YOLO_MODELS_DIR / NLP_MODELS_DIR / DATASETS_DIR.
+# Имена санитизируются через _safe_name (только [A-Za-z0-9_.\-]).
+# ════════════════════════════════════════════════════════════════════════════
+
+# Лимиты на размер загружаемого файла (защита от DoS)
+MAX_YOLO_FILE_MB    = 500   # .pt веса YOLO бывают до ~250МБ
+MAX_NLP_ZIP_MB      = 2000  # NLP модели бывают большими (BERT-large ~1.3ГБ)
+MAX_DATASET_ZIP_MB  = 1000  # пользовательский датасет
+
+
+def _safe_name(name: str) -> str:
+    """
+    Очищает имя файла/папки от опасных символов.
+    Оставляет только [A-Za-z0-9_.-], остальное заменяет на _.
+    Возвращает пустую строку для опасных имён вроде '..' или '/etc/passwd'.
+    """
+    name = name.strip().replace('\\', '/').split('/')[-1]  # отрезаем путь
+    name = re.sub(r'[^A-Za-z0-9_.\-]', '_', name)
+    if name in ('', '.', '..'): return ''
+    return name[:128]  # ограничение длины
+
+
+def _check_size(file: UploadFile, max_mb: int):
+    """Проверяет размер загруженного файла, бросает 413 если больше лимита."""
+    file.file.seek(0, 2)
+    size = file.file.tell()
+    file.file.seek(0)
+    if size > max_mb * 1024 * 1024:
+        raise HTTPException(413, f"Файл слишком большой ({size/1024/1024:.1f}МБ > {max_mb}МБ)")
+    if size == 0:
+        raise HTTPException(400, "Файл пустой")
+
+
+@app.post("/api/upload/yolo")
+async def upload_yolo_model(file: UploadFile = File(...)):
+    """
+    Загрузка YOLO-весов (.pt файл).
+    Сохраняется в YOLO_MODELS_DIR с санитизацией имени.
+    Возвращает {filename, size_mb, suggested_name} — suggested_name
+    можно использовать как имя модели в проекте (без .pt).
+    """
+    fname = _safe_name(file.filename or '')
+    if not fname.lower().endswith('.pt'):
+        raise HTTPException(400, "Ожидается .pt файл (PyTorch checkpoint)")
+    _check_size(file, MAX_YOLO_FILE_MB)
+
+    target = YOLO_MODELS_DIR / fname
+    with open(target, 'wb') as f:
+        shutil.copyfileobj(file.file, f)
+
+    size_mb = target.stat().st_size / 1024 / 1024
+    return {
+        "filename": fname,
+        "size_mb": round(size_mb, 2),
+        "suggested_name": fname[:-3],  # без .pt
+        "path": str(target.relative_to(_BASE_DIR)),
+    }
+
+
+@app.post("/api/upload/nlp")
+async def upload_nlp_model(file: UploadFile = File(...)):
+    """
+    Загрузка NLP-модели в виде ZIP-архива.
+    Архив должен содержать config.json + веса (.bin/.safetensors) + tokenizer.
+    Распаковывается в NLP_MODELS_DIR/<имя_без_zip>/.
+
+    После загрузки модель доступна для тестирования: имя модели в проекте
+    должно совпадать с папкой (без .zip).
+    """
+    fname = _safe_name(file.filename or '')
+    if not fname.lower().endswith('.zip'):
+        raise HTTPException(400, "Ожидается .zip архив с моделью HuggingFace")
+    _check_size(file, MAX_NLP_ZIP_MB)
+
+    model_name = fname[:-4]  # обрезаем .zip
+    target_dir = NLP_MODELS_DIR / model_name
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    target_dir.mkdir(parents=True)
+
+    # Сохраняем zip во временный файл и распаковываем
+    tmp_zip = NLP_MODELS_DIR / f"_tmp_{uuid.uuid4().hex}.zip"
+    try:
+        with open(tmp_zip, 'wb') as f:
+            shutil.copyfileobj(file.file, f)
+
+        with zipfile.ZipFile(tmp_zip) as zf:
+            # Защита от zip-slip: проверяем что все файлы внутри target_dir
+            for member in zf.namelist():
+                # Запрещаем абсолютные пути и попытки выхода через ..
+                if member.startswith('/') or '..' in Path(member).parts:
+                    raise HTTPException(400, f"Опасный путь в архиве: {member}")
+            zf.extractall(target_dir)
+
+        # Иногда архив содержит вложенную папку — раскладываем содержимое наверх
+        contents = list(target_dir.iterdir())
+        if len(contents) == 1 and contents[0].is_dir():
+            inner = contents[0]
+            for item in inner.iterdir():
+                shutil.move(str(item), str(target_dir / item.name))
+            inner.rmdir()
+
+        # Проверяем что есть базовые файлы HuggingFace модели
+        files = [p.name for p in target_dir.iterdir()]
+        has_config = 'config.json' in files
+        has_weights = any(f.endswith(('.bin', '.safetensors', '.pt')) for f in files)
+        if not has_config or not has_weights:
+            shutil.rmtree(target_dir)
+            raise HTTPException(400,
+                "Архив не содержит валидную HuggingFace модель "
+                "(нужны config.json и веса .bin/.safetensors)")
+    finally:
+        if tmp_zip.exists(): tmp_zip.unlink()
+
+    return {
+        "name": model_name,
+        "path": str(target_dir.relative_to(_BASE_DIR)),
+        "files": [p.name for p in target_dir.iterdir()],
+    }
+
+
+@app.post("/api/datasets/upload")
+async def upload_dataset(file: UploadFile = File(...), kind: str = "images"):
+    """
+    Загрузка пользовательского датасета.
+    kind="images" — ZIP с изображениями (.jpg/.png) для тестирования YOLO.
+    kind="texts"  — CSV с колонками text,label (label = pos/neg/neu) для NLP.
+
+    Структура после загрузки:
+      datasets/<имя>/images/*.jpg          (для kind=images)
+      datasets/<имя>/texts.csv             (для kind=texts)
+      datasets/<имя>/meta.json             (тип, размер, число элементов)
+    """
+    fname = _safe_name(file.filename or '')
+    if not fname:
+        raise HTTPException(400, "Некорректное имя файла")
+
+    if kind == "images":
+        if not fname.lower().endswith('.zip'):
+            raise HTTPException(400, "Для kind=images нужен .zip с изображениями")
+        _check_size(file, MAX_DATASET_ZIP_MB)
+        ds_name = fname[:-4]
+    elif kind == "texts":
+        if not fname.lower().endswith('.csv'):
+            raise HTTPException(400, "Для kind=texts нужен .csv файл")
+        _check_size(file, 50)  # CSV маленькие — лимит 50МБ
+        ds_name = fname[:-4]
+    else:
+        raise HTTPException(400, "kind должен быть 'images' или 'texts'")
+
+    ds_dir = DATASETS_DIR / ds_name
+    if ds_dir.exists():
+        shutil.rmtree(ds_dir)
+    ds_dir.mkdir(parents=True)
+
+    count = 0
+    if kind == "images":
+        tmp_zip = ds_dir / f"_tmp_{uuid.uuid4().hex}.zip"
+        try:
+            with open(tmp_zip, 'wb') as f:
+                shutil.copyfileobj(file.file, f)
+            img_dir = ds_dir / "images"
+            img_dir.mkdir()
+            with zipfile.ZipFile(tmp_zip) as zf:
+                for member in zf.namelist():
+                    if member.startswith('/') or '..' in Path(member).parts:
+                        continue
+                    # Берём только картинки, кладём плоско в images/
+                    name_lower = member.lower()
+                    if name_lower.endswith(('.jpg', '.jpeg', '.png', '.bmp', '.webp')):
+                        target_file = img_dir / Path(member).name
+                        with zf.open(member) as src, open(target_file, 'wb') as dst:
+                            shutil.copyfileobj(src, dst)
+                        count += 1
+        finally:
+            if tmp_zip.exists(): tmp_zip.unlink()
+        if count == 0:
+            shutil.rmtree(ds_dir)
+            raise HTTPException(400, "В архиве не найдено изображений")
+    else:  # texts
+        csv_path = ds_dir / "texts.csv"
+        with open(csv_path, 'wb') as f:
+            shutil.copyfileobj(file.file, f)
+        # Валидация: проверяем что в CSV есть колонки text,label
+        try:
+            with open(csv_path, encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                if not reader.fieldnames or 'text' not in reader.fieldnames or 'label' not in reader.fieldnames:
+                    raise ValueError("Нужны колонки text,label")
+                count = sum(1 for _ in reader)
+        except Exception as e:
+            shutil.rmtree(ds_dir)
+            raise HTTPException(400, f"Невалидный CSV: {e}")
+
+    meta = {"name": ds_name, "kind": kind, "count": count, "uploaded_at": time.strftime('%Y-%m-%d %H:%M:%S')}
+    (ds_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding='utf-8')
+    return meta
+
+
+@app.get("/api/uploads/yolo")
+def list_uploaded_yolo():
+    """Список .pt файлов в YOLO_MODELS_DIR."""
+    files = []
+    for p in YOLO_MODELS_DIR.glob('*.pt'):
+        files.append({
+            "filename": p.name,
+            "name": p.stem,
+            "size_mb": round(p.stat().st_size / 1024 / 1024, 2),
+        })
+    return sorted(files, key=lambda x: x['name'])
+
+
+@app.get("/api/uploads/nlp")
+def list_uploaded_nlp():
+    """Список локально доступных NLP-моделей (папки в NLP_MODELS_DIR с config.json)."""
+    out = []
+    for p in NLP_MODELS_DIR.iterdir():
+        if not p.is_dir(): continue
+        if not (p / 'config.json').exists(): continue
+        # Размер папки = сумма всех файлов
+        size = sum(f.stat().st_size for f in p.rglob('*') if f.is_file())
+        out.append({
+            "name": p.name,
+            "size_mb": round(size / 1024 / 1024, 2),
+        })
+    return sorted(out, key=lambda x: x['name'])
+
+
+@app.get("/api/datasets")
+def list_datasets():
+    """Список загруженных пользовательских датасетов."""
+    out = []
+    for p in DATASETS_DIR.iterdir():
+        if not p.is_dir(): continue
+        meta_file = p / "meta.json"
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding='utf-8'))
+                out.append(meta)
+            except: pass
+    return sorted(out, key=lambda x: x.get('name', ''))
+
+
+@app.delete("/api/uploads/yolo/{filename}")
+def delete_yolo_model(filename: str):
+    """Удалить .pt файл из YOLO_MODELS_DIR."""
+    fname = _safe_name(filename)
+    if not fname.endswith('.pt'):
+        raise HTTPException(400, "Ожидается .pt файл")
+    target = YOLO_MODELS_DIR / fname
+    if not target.exists():
+        raise HTTPException(404, "Файл не найден")
+    target.unlink()
+    return {"status": "deleted"}
+
+
+@app.delete("/api/uploads/nlp/{name}")
+def delete_nlp_model(name: str):
+    """Удалить локальную NLP-модель."""
+    name = _safe_name(name)
+    target = NLP_MODELS_DIR / name
+    if not target.exists() or not target.is_dir():
+        raise HTTPException(404, "Модель не найдена")
+    shutil.rmtree(target)
+    return {"status": "deleted"}
+
+
+@app.delete("/api/datasets/{name}")
+def delete_dataset(name: str):
+    """Удалить датасет."""
+    name = _safe_name(name)
+    target = DATASETS_DIR / name
+    if not target.exists() or not target.is_dir():
+        raise HTTPException(404, "Датасет не найден")
+    shutil.rmtree(target)
+    return {"status": "deleted"}
 
 
 # ════════════════════════════════════════════════════════════════════════════
