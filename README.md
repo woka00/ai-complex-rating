@@ -288,7 +288,6 @@ Full Swagger docs: **http://localhost:8000/docs**
 | Backend | FastAPI + SQLite |
 | Frontend | HTML/CSS/JS + Chart.js (no build step) |
 | ML (optional) | ultralytics (YOLO), transformers + torch (NLP) |
-| Deploy | Single command, runs on any laptop |
 
 ---
 
@@ -594,6 +593,5 @@ Swagger: **http://localhost:8000/docs**
 | Backend | FastAPI + SQLite |
 | Frontend | HTML/CSS/JS + Chart.js (без сборки) |
 | ML (опционально) | ultralytics (YOLO), transformers + torch (NLP) |
-| Запуск | Одна команда, работает на любом ноутбуке |
 
 ---
