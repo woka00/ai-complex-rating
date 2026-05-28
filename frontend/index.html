@@ -427,10 +427,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
         </div>
       </div>
 
-      <!-- Краткий обзор всех вкладок интерфейса -->
+      <!-- Краткий обзор всех вкладок интерфейса.
+           Сетка 3×3: ряд 1 — настройка проекта, ряд 2 — ядро расчёта,
+           ряд 3 — результаты и анализ. «Сравнение» намеренно стоит позицией 8
+           (центр нижнего ряда) для визуального баланса. -->
       <div class="card">
         <h3>Обзор страниц интерфейса</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <!-- Ряд 1: настройка -->
           <div class="tab-info">
             <div class="ti-icon">📁</div>
             <div><h5>Проект</h5><p>Дашборд с лидером рейтинга, списком моделей и метаинформацией о проекте.</p></div>
@@ -443,6 +447,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <div class="ti-icon">✏️</div>
             <div><h5>Оценки</h5><p>Матрица оценок модели × критерии. Ввод вручную или импорт CSV.</p></div>
           </div>
+          <!-- Ряд 2: ядро расчёта -->
           <div class="tab-info">
             <div class="ti-icon">🧮</div>
             <div><h5>Расчёт K</h5><p>Запуск расчёта по формулам ТЗ. Рейтинг моделей с детализацией по группам.</p></div>
@@ -452,16 +457,21 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <div><h5>Математика</h5><p>Прозрачное отображение всех формул и пошагового расчёта K_k для каждой модели.</p></div>
           </div>
           <div class="tab-info">
-            <div class="ti-icon">⚡</div>
-            <div><h5>Тестирование</h5><p>Локальный запуск моделей детекции с прогресс-баром и автоматической оценкой.</p></div>
-          </div>
-          <div class="tab-info">
             <div class="ti-icon">📊</div>
-            <div><h5>Аналитика</h5><p>Bar chart, stacked bar, radar — визуализация K. Финальный отчёт с рекомендацией.</p></div>
+            <div><h5>Метрики</h5><p>Описание каждого критерия: что измеряет, формула нормировки в шкалу 1–5, пороги оценок.</p></div>
+          </div>
+          <!-- Ряд 3: результаты и анализ; «Сравнение» — центральный нижний -->
+          <div class="tab-info">
+            <div class="ti-icon">⚡</div>
+            <div><h5>Тестирование</h5><p>Локальный запуск моделей детекции и NLP с прогресс-баром и автоматической оценкой.</p></div>
           </div>
           <div class="tab-info">
             <div class="ti-icon">🔬</div>
             <div><h5>Сравнение</h5><p>Сравнительная таблица + анализ чувствительности к изменению весов критериев.</p></div>
+          </div>
+          <div class="tab-info">
+            <div class="ti-icon">📈</div>
+            <div><h5>Аналитика</h5><p>Bar chart, stacked bar, radar — визуализация K. Финальный отчёт с рекомендацией.</p></div>
           </div>
         </div>
         <div style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:var(--r);border-left:3px solid var(--accent)">
