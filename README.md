@@ -19,6 +19,9 @@ The platform runs locally, ships with two preloaded demo projects (object detect
 
 ## Screenshots
 
+> **Main page**
+![Project Dashboard](docs/screenshots/Main_page.png)
+
 > **Main dashboard — project overview with model leaderboard**
 ![Project Dashboard](docs/screenshots/Project_Dashboard.png)
 
@@ -305,6 +308,9 @@ Full Swagger docs: **http://localhost:8000/docs**
 ---
 
 ## Скриншоты
+
+> **Главная страница**
+![Project Dashboard](docs/screenshots/Main_page.png)
 
 > **Главный дашборд — обзор проекта и лидерборд моделей**
 ![Project Dashboard](docs/screenshots/Project_Dashboard.png)

@@ -1,11 +1,6 @@
 @echo off
 chcp 65001 > nul
 echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║       AI CharacherHub — v2.0             ║
-echo  ║       Платформа оценки ИИ-моделей        ║
-echo  ╚══════════════════════════════════════════╝
-echo.
 
 echo [1/2] Установка зависимостей...
 python -m pip install -r requirements.txt -q
