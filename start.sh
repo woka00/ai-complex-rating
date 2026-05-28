@@ -1,7 +1,7 @@
 #!/bin/bash
-# ── AI CharacherHub — Quick Start ───────────────────────────────────────────
+# ── AI CharacterHub — Quick Start ───────────────────────────────────────────
 
-echo "=== AI CharacherHub ==="
+echo "=== AI CharacterHub ==="
 echo ""
 
 # 1. Install deps

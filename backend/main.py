@@ -1,6 +1,6 @@
 """
 ===================================================================
-AI CharacherHub - Платформа комплексной оценки моделей искусственного интеллекта
+AI CharacterHub - Платформа комплексной оценки моделей искусственного интеллекта
 ===================================================================
 Backend: FastAPI + SQLite. Запускается одной командой `python main.py`.
 При первом запуске автоматически наполняется демо-данными.
@@ -68,7 +68,7 @@ NLP_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # -- Инициализация FastAPI ---------------------------------------------------
-app = FastAPI(title="AI CharacherHub", version="2.0.0", docs_url="/docs")
+app = FastAPI(title="AI CharacterHub", version="2.0.0", docs_url="/docs")
 # CORS разрешён для всех источников - для удобства разработки
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
