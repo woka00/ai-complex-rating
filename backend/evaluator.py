@@ -5,11 +5,65 @@ then converts raw metrics into scores [1..5] for the platform.
 
 Usage:
     python evaluator.py --project_id 1 --model_type detection
+    python evaluator.py --project_id 1 --model_type detection --dataset my-photos
+    python evaluator.py --project_id 1 --model_type text --dataset my-reviews
 """
-import time, json, argparse, os, sys
+import time, json, argparse, os, sys, csv
+from pathlib import Path
 import httpx
 
 API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+
+# Папка с пользовательскими датасетами — та же, что использует main.py.
+# Переопределяется через env DATASETS_DIR (на случай нестандартного размещения).
+_BASE_DIR = Path(__file__).resolve().parent
+DATASETS_DIR = Path(os.getenv("DATASETS_DIR", str(_BASE_DIR / "datasets")))
+
+
+# -- Dataset loaders ----------------------------------------------------------
+def _load_image_dataset(dataset_name):
+    """
+    Возвращает список путей к изображениям из DATASETS_DIR/<name>/images/.
+    Если dataset_name пуст -> None (вызывающий код использует built-in ASSETS).
+    Если папки/файлов нет -> бросает FileNotFoundError, чтобы пользователь
+    не получил silent fallback на чужие данные.
+    """
+    if not dataset_name:
+        return None
+    img_dir = DATASETS_DIR / dataset_name / "images"
+    if not img_dir.is_dir():
+        raise FileNotFoundError(f"В датасете '{dataset_name}' нет папки images/ ({img_dir})")
+    images = []
+    for ext in ("*.jpg", "*.jpeg", "*.png", "*.bmp", "*.webp"):
+        images.extend(sorted(img_dir.glob(ext)))
+    if not images:
+        raise FileNotFoundError(f"В датасете '{dataset_name}' не найдено изображений")
+    return images[:30]  # лимит чтобы не висло на огромных наборах
+
+
+def _load_text_dataset(dataset_name):
+    """
+    Возвращает список (text, expected_label) из DATASETS_DIR/<name>/texts.csv.
+    expected_label оставляем сырым (str) — он не используется здесь для
+    точности (evaluator.py меряет только confidence), но удобен для совместимости.
+    None -> вызывающий код возьмёт встроенные тексты.
+    """
+    if not dataset_name:
+        return None
+    csv_path = DATASETS_DIR / dataset_name / "texts.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(f"В датасете '{dataset_name}' нет texts.csv ({csv_path})")
+    items = []
+    with open(csv_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            t = (row.get("text") or "").strip()
+            l = (row.get("label") or "").strip().lower()
+            if t:
+                items.append((t, l))
+    if not items:
+        raise FileNotFoundError(f"В датасете '{dataset_name}' нет валидных строк")
+    return items
 
 # -- Score converters ---------------------------------------------------------
 def fps_to_score(fps: float) -> float:
@@ -51,16 +105,20 @@ def noise_stability_to_score(base_det: int, noise_det: int) -> float:
     return 1.0
 
 # -- YOLO evaluator ------------------------------------------------------------
-def evaluate_yolo():
+def evaluate_yolo(dataset=None):
     """
     Returns dict: model_name -> {criterion_name -> score}
     Requires: pip install ultralytics opencv-python numpy
+
+    dataset: имя папки в DATASETS_DIR. None -> встроенные COCO8 ASSETS.
+             Если указан, но не найден/пустой -> бросает FileNotFoundError
+             (silent fallback на built-in убран, чтобы пользователь не получал
+             одинаковый результат при разных именах датасета).
     """
     try:
         from ultralytics import YOLO
         import numpy as np
         import cv2
-        from pathlib import Path
     except ImportError:
         print("Install: pip install ultralytics opencv-python numpy")
         return {}
@@ -71,15 +129,21 @@ def evaluate_yolo():
         "YOLOv8m": "yolov8m.pt",
     }
 
-    # Use built-in COCO8 sample images
-    try:
-        from ultralytics.utils import ASSETS
-        test_images = list(ASSETS.glob("*.jpg"))[:5]
-        if not test_images:
-            raise FileNotFoundError
-    except Exception:
-        print("No test images found, using synthetic noise test only")
-        test_images = []
+    # Источник изображений: пользовательский датасет (строго) либо встроенные ASSETS.
+    custom = _load_image_dataset(dataset)
+    if custom is not None:
+        test_images = custom
+        print(f"  Using dataset '{dataset}': {len(test_images)} images")
+    else:
+        try:
+            from ultralytics.utils import ASSETS
+            test_images = list(ASSETS.glob("*.jpg"))[:5]
+            if not test_images:
+                raise FileNotFoundError
+            print(f"  Using built-in ASSETS: {len(test_images)} images")
+        except Exception:
+            print("No test images found, using synthetic noise test only")
+            test_images = []
 
     results = {}
 
@@ -224,9 +288,13 @@ def evaluate_classifiers():
     return results
 
 # -- Text sentiment evaluator --------------------------------------------------
-def evaluate_text_models():
+def evaluate_text_models(dataset=None):
     """
     Requires: pip install transformers torch
+
+    dataset: имя папки в DATASETS_DIR с texts.csv (колонки text,label).
+             None -> встроенные 5 текстов. При указанном, но битом датасете
+             бросается FileNotFoundError (silent fallback убран).
     """
     try:
         from transformers import pipeline
@@ -240,13 +308,21 @@ def evaluate_text_models():
         "roberta-sentiment": ("sentiment-analysis", "cardiffnlp/twitter-roberta-base-sentiment-latest"),
     }
 
-    test_texts = [
-        "Этот продукт отличного качества, очень доволен покупкой!",
-        "Ужасное качество, полное разочарование.",
-        "Нормально, ничего особенного.",
-        "чо за хрень вообще не работает",          # noise/slang
-        "Качество приемлемое но могло быть лучше",
-    ]
+    custom = _load_text_dataset(dataset)
+    if custom is not None:
+        # _load_text_dataset возвращает [(text, label), ...] - берём только тексты,
+        # т.к. evaluate_text_models меряет confidence, а не accuracy.
+        test_texts = [t for t, _ in custom]
+        print(f"  Using dataset '{dataset}': {len(test_texts)} texts")
+    else:
+        test_texts = [
+            "Этот продукт отличного качества, очень доволен покупкой!",
+            "Ужасное качество, полное разочарование.",
+            "Нормально, ничего особенного.",
+            "чо за хрень вообще не работает",          # noise/slang
+            "Качество приемлемое но могло быть лучше",
+        ]
+        print(f"  Using built-in texts: {len(test_texts)} texts")
 
     results = {}
     for name, (task, model_id) in model_configs.items():
@@ -313,6 +389,9 @@ if __name__ == "__main__":
     parser.add_argument("--project_id", type=int, required=True)
     parser.add_argument("--model_type", choices=["detection", "classification", "text", "all"],
                         default="all")
+    parser.add_argument("--dataset", type=str, default=None,
+                        help="Имя папки в DATASETS_DIR (images-датасет для detection, "
+                             "texts-датасет для text). Если не указан - встроенный.")
     parser.add_argument("--dry_run", action="store_true", help="Print scores without pushing")
     args = parser.parse_args()
 
@@ -320,7 +399,7 @@ if __name__ == "__main__":
 
     if args.model_type in ("detection", "all"):
         print("\n[1/3] Evaluating detection models (YOLO)...")
-        all_results.update(evaluate_yolo())
+        all_results.update(evaluate_yolo(dataset=args.dataset))
 
     if args.model_type in ("classification", "all"):
         print("\n[2/3] Evaluating image classifiers...")
@@ -328,7 +407,7 @@ if __name__ == "__main__":
 
     if args.model_type in ("text", "all"):
         print("\n[3/3] Evaluating text/sentiment models...")
-        all_results.update(evaluate_text_models())
+        all_results.update(evaluate_text_models(dataset=args.dataset))
 
     if args.dry_run:
         print("\n--- DRY RUN (scores not pushed) ---")

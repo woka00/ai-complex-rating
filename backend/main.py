@@ -705,7 +705,12 @@ def _yolo_test_worker(job_id: str, project_id: int, model_names: list, dataset: 
                         log=f'Ошибка импорта: {e}\nУстановите: pip install ultralytics opencv-python numpy')
             return
 
-        # Тестовые изображения: из dataset или встроенные
+        # Тестовые изображения: строго по контракту.
+        # - dataset указан -> читаем ТОЛЬКО из DATASETS_DIR/<dataset>/images/
+        #   (на endpoint-е уже была валидация, но дублируем fail-loud здесь).
+        # - dataset не указан -> встроенные ASSETS из ultralytics.
+        # Silent fallback на built-in убран: иначе при опечатке в имени
+        # пользователь молча получает результат на чужих данных.
         test_images = []
         dataset_label = ''
         if dataset:
@@ -715,12 +720,15 @@ def _yolo_test_worker(job_id: str, project_id: int, model_names: list, dataset: 
                 for ext in ('*.jpg', '*.jpeg', '*.png', '*.bmp', '*.webp'):
                     test_images.extend(ds_img_dir.glob(ext))
                 test_images = sorted(test_images)[:30]  # лимит чтобы не висло
-                dataset_label = f' (датасет: {dataset}, {len(test_images)} фото)'
-
-        if not test_images:
-            # Fallback: встроенные тестовые изображения (zidane.jpg, bus.jpg)
+            if not test_images:
+                _update_job(job_id, status='error',
+                            log=f'В датасете "{dataset}" не найдено изображений '
+                                f'(ожидается {ds_img_dir})')
+                return
+            dataset_label = f' (датасет: {dataset}, {len(test_images)} фото)'
+        else:
             test_images = list(ASSETS.glob("*.jpg"))[:5]
-            dataset_label = f' ({len(test_images)} встроенных изображений)'
+            dataset_label = f' (встроенный датасет, {len(test_images)} изображений)'
 
         if not test_images:
             _update_job(job_id, status='error', log='Не найдены тестовые изображения')
@@ -876,6 +884,9 @@ def start_test(pid: int, req: TestStartRequest):
     Запустить локальное тестирование YOLO-моделей детекции.
     Возвращает job_id - фронтенд опрашивает /api/test/{job_id} для прогресса.
     """
+    # Если dataset указан явно - валидируем существование и тип ДО создания job-а,
+    # чтобы пользователь сразу видел ошибку вместо silent fallback на встроенные данные.
+    _validate_dataset_kind(req.dataset, 'images')
     job_id = str(uuid.uuid4())
     with get_conn() as conn:
         validate_project_exists(pid, conn)
@@ -946,27 +957,30 @@ NLP_MODEL_REGISTRY = {
 def _load_nlp_test_texts(dataset: Optional[str]) -> list:
     """
     Возвращает список (text, expected_label) для NLP-тестирования.
-    Если dataset указан и файл DATASETS_DIR/<dataset>/texts.csv существует,
-    загружает оттуда; иначе - встроенный NLP_TEST_TEXTS.
+    - dataset == None -> встроенный NLP_TEST_TEXTS
+    - dataset указан  -> ТОЛЬКО DATASETS_DIR/<dataset>/texts.csv,
+      при ошибке/отсутствии файла бросаем ValueError. Silent fallback убран,
+      чтобы пользователь не получал результат на чужих данных при опечатке.
     """
     if not dataset:
         return NLP_TEST_TEXTS
     safe = _safe_name(dataset)
     csv_path = DATASETS_DIR / safe / "texts.csv"
     if not csv_path.exists():
-        return NLP_TEST_TEXTS
+        raise ValueError(f"В датасете '{dataset}' нет файла texts.csv ({csv_path})")
     items = []
-    try:
-        with open(csv_path, encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                t = (row.get('text') or '').strip()
-                l = (row.get('label') or '').strip().lower()
-                if t and l in ('pos', 'neg', 'neu'):
-                    items.append((t, l))
-    except Exception:
-        return NLP_TEST_TEXTS
-    return items or NLP_TEST_TEXTS
+    with open(csv_path, encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            t = (row.get('text') or '').strip()
+            l = (row.get('label') or '').strip().lower()
+            if t and l in ('pos', 'neg', 'neu'):
+                items.append((t, l))
+    if not items:
+        raise ValueError(
+            f"В датасете '{dataset}' нет валидных строк "
+            f"(нужны колонки text,label; label ∈ pos/neg/neu)")
+    return items
 
 
 def _nlp_test_worker(job_id: str, project_id: int, model_names: list, dataset: Optional[str] = None):
@@ -991,9 +1005,16 @@ def _nlp_test_worker(job_id: str, project_id: int, model_names: list, dataset: O
                         log=f'Ошибка импорта: {e}\nУстановите: pip install transformers torch')
             return
 
-        # Тестовые тексты: из dataset или встроенные
-        test_texts = _load_nlp_test_texts(dataset)
-        ds_label = f' (датасет: {dataset}, {len(test_texts)} текстов)' if dataset else f' ({len(test_texts)} встроенных текстов)'
+        # Тестовые тексты: из dataset или встроенные.
+        # _load_nlp_test_texts кидает ValueError если dataset указан, но битый
+        # (нет файла, нет валидных строк) - валидацию мы уже делаем на endpoint-е,
+        # но всё равно ловим здесь и пишем в лог job-а как ошибку.
+        try:
+            test_texts = _load_nlp_test_texts(dataset)
+        except ValueError as e:
+            _update_job(job_id, status='error', log=str(e))
+            return
+        ds_label = f' (датасет: {dataset}, {len(test_texts)} текстов)' if dataset else f' (встроенный датасет, {len(test_texts)} текстов)'
         log_lines = [f'Начало NLP-тестирования: {len(model_names)} моделей × {len(test_texts)} текстов{ds_label}']
         total_steps = len(model_names) * len(test_texts)
         current_step = 0
@@ -1138,6 +1159,7 @@ def start_nlp_test(pid: int, req: TestStartRequest):
     Если req.dataset указан - используются тексты из DATASETS_DIR/<dataset>/texts.csv.
     Возвращает job_id - фронтенд опрашивает /api/test/{job_id} для прогресса.
     """
+    _validate_dataset_kind(req.dataset, 'texts')
     job_id = str(uuid.uuid4())
     with get_conn() as conn:
         validate_project_exists(pid, conn)
@@ -1178,6 +1200,45 @@ def _safe_name(name: str) -> str:
     name = re.sub(r'[^A-Za-z0-9_.\-]', '_', name)
     if name in ('', '.', '..'): return ''
     return name[:128]  # ограничение длины
+
+
+def _validate_dataset_kind(dataset: Optional[str], expected_kind: str) -> None:
+    """
+    Если dataset указан - проверяет что он существует, имеет правильный тип
+    и непустое содержимое. Бросает 400 при любом несоответствии.
+    expected_kind: 'images' (для YOLO) | 'texts' (для NLP).
+    Если dataset == None - молча возвращает (значит будет built-in).
+    """
+    if not dataset:
+        return
+    safe = _safe_name(dataset)
+    if not safe:
+        raise HTTPException(400, f"Недопустимое имя датасета: '{dataset}'")
+    ds_dir = DATASETS_DIR / safe
+    if not ds_dir.is_dir():
+        raise HTTPException(400, f"Датасет '{dataset}' не найден")
+    # Проверяем тип по meta.json (если есть)
+    meta_path = ds_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            actual_kind = json.loads(meta_path.read_text(encoding='utf-8')).get('kind')
+            if actual_kind and actual_kind != expected_kind:
+                raise HTTPException(400,
+                    f"Датасет '{dataset}' имеет тип '{actual_kind}', "
+                    f"для этого теста нужен тип '{expected_kind}'")
+        except (json.JSONDecodeError, OSError):
+            pass
+    # Проверяем содержимое
+    if expected_kind == 'images':
+        img_dir = ds_dir / 'images'
+        if not img_dir.is_dir():
+            raise HTTPException(400, f"В датасете '{dataset}' нет папки images/")
+        has_img = any(img_dir.glob(ext) for ext in ('*.jpg', '*.jpeg', '*.png', '*.bmp', '*.webp'))
+        if not has_img:
+            raise HTTPException(400, f"В датасете '{dataset}' не найдено изображений")
+    elif expected_kind == 'texts':
+        if not (ds_dir / 'texts.csv').exists():
+            raise HTTPException(400, f"В датасете '{dataset}' нет texts.csv")
 
 
 def _check_size(file: UploadFile, max_mb: int):

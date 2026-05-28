@@ -654,10 +654,21 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных датасетов</div>
         </div>
 
-        <div class="fr" style="margin-top:14px;align-items:center">
+        <div class="fr" style="margin-top:14px;align-items:flex-end;gap:12px">
+          <div class="fg" style="flex:0 0 auto">
+            <label>Тест</label>
+            <div class="upload-toggle" id="active-scene-toggle" style="margin:0">
+              <button class="active" data-scene="yolo" onclick="setActiveScene('yolo')">📷 Детекция (YOLO)</button>
+              <button data-scene="nlp" onclick="setActiveScene('nlp')">💬 NLP</button>
+            </div>
+          </div>
           <div class="fg" style="flex:1"><label>Использовать датасет при запуске</label>
             <select id="active-dataset"><option value="">— Встроенный (по умолчанию) —</option></select>
           </div>
+        </div>
+        <div id="active-dataset-hint" style="font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.5">
+          Выбор применяется к соответствующему тесту ниже. Тип «YOLO» использует только image-датасеты,
+          «NLP» — только text-датасеты.
         </div>
       </div>
 
@@ -676,6 +687,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="fr">
           <button class="btn btn-accent" id="test-start-btn" onclick="startTest()">▶ Запустить тест детекции</button>
           <span style="color:var(--muted);font-size:11px;padding:6px 0">Веса скачиваются автоматически при первом запуске</span>
+        </div>
+        <div id="yolo-active-ds-label" style="font-size:11px;color:var(--muted2);margin-top:8px">
+          Будет использован: <b style="color:var(--fg)">встроенный датасет</b>
         </div>
       </div>
 
@@ -696,6 +710,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="fr">
           <button class="btn btn-accent" id="test-nlp-start-btn" onclick="startNlpTest()">▶ Запустить NLP-тест</button>
           <span style="color:var(--muted);font-size:11px;padding:6px 0">Локальные модели — мгновенно; HF — скачиваются при первом запуске (~30–200 МБ)</span>
+        </div>
+        <div id="nlp-active-ds-label" style="font-size:11px;color:var(--muted2);margin-top:8px">
+          Будет использован: <b style="color:var(--fg)">встроенный датасет</b>
         </div>
       </div>
 
@@ -1292,11 +1309,16 @@ async function startTest(){
     .map(el=>el.dataset.model);
   if(!selected.length){toast('Выбери хотя бы одну модель детекции','err');return}
 
+  // Датасет: то, что выбрано для сцены 'yolo' (или пусто = built-in).
+  const dataset = _datasetForScene.yolo || '';
+  const body = {model_names:selected};
+  if(dataset) body.dataset = dataset;
+
   const btn=document.getElementById('test-start-btn');
   btn.disabled=true;
   btn.innerHTML='<span class="spin"></span> Запуск...';
   try{
-    const r=await POST(`/api/projects/${pid}/test/start`,{model_names:selected});
+    const r=await POST(`/api/projects/${pid}/test/start`,body);
     pollTestStatus(r.job_id,'yolo');
   }catch(e){
     toast(e.message,'err');
@@ -1311,11 +1333,15 @@ async function startNlpTest(){
     .map(el=>el.dataset.model);
   if(!selected.length){toast('Выбери хотя бы одну NLP-модель','err');return}
 
+  const dataset = _datasetForScene.nlp || '';
+  const body = {model_names:selected};
+  if(dataset) body.dataset = dataset;
+
   const btn=document.getElementById('test-nlp-start-btn');
   btn.disabled=true;
   btn.innerHTML='<span class="spin"></span> Запуск...';
   try{
-    const r=await POST(`/api/projects/${pid}/test/nlp/start`,{model_names:selected});
+    const r=await POST(`/api/projects/${pid}/test/nlp/start`,body);
     pollTestStatus(r.job_id,'nlp');
   }catch(e){
     toast(e.message,'err');
@@ -1762,29 +1788,78 @@ async function handleDatasetUpload(file){
   }
 }
 
+// Все датасеты (объединённый список) и выбор для каждой сцены отдельно.
+// На сцене 'yolo' селект показывает только images-датасеты, на 'nlp' - только texts.
+// _datasetForScene запоминает выбор, чтобы при переключении сцены не терять
+// прошлое значение пользователя.
+let _allDatasets = [];
+let _activeScene = 'yolo';
+const _datasetForScene = {yolo:'', nlp:''};
+
+function _activeKind(){ return _activeScene==='nlp' ? 'texts' : 'images'; }
+
+function _renderDatasetSelect(){
+  const select=document.getElementById('active-dataset');
+  if(!select)return;
+  const kind=_activeKind();
+  const filtered=_allDatasets.filter(d=>d.kind===kind);
+  select.innerHTML='<option value="">— Встроенный (по умолчанию) —</option>'+
+    filtered.map(ds=>`<option value="${esc(ds.name)}">${esc(ds.name)} (${ds.count} шт)</option>`).join('');
+  // Восстанавливаем выбор для этой сцены, если он ещё валиден
+  const prev=_datasetForScene[_activeScene];
+  if(prev && filtered.find(x=>x.name===prev)){
+    select.value=prev;
+  }else{
+    _datasetForScene[_activeScene]='';
+    select.value='';
+  }
+  _renderActiveDsLabels();
+}
+
+function _renderActiveDsLabels(){
+  // Текстовая подсказка возле каждой кнопки запуска - что реально пойдёт в тест.
+  const yoloLbl=document.getElementById('yolo-active-ds-label');
+  const nlpLbl =document.getElementById('nlp-active-ds-label');
+  const fmt=(scene, builtinHint)=>{
+    const name=_datasetForScene[scene];
+    if(!name) return `Будет использован: <b style="color:var(--fg)">встроенный датасет</b> (${builtinHint})`;
+    const ds=_allDatasets.find(x=>x.name===name);
+    const cnt=ds?` — ${ds.count} элементов`:'';
+    return `Будет использован: <b style="color:var(--accent-h)">${esc(name)}</b>${cnt}`;
+  };
+  if(yoloLbl) yoloLbl.innerHTML=fmt('yolo','встроенные изображения ultralytics');
+  if(nlpLbl)  nlpLbl.innerHTML =fmt('nlp','8 встроенных текстов');
+}
+
+function setActiveScene(scene){
+  if(scene!=='yolo'&&scene!=='nlp')return;
+  _activeScene=scene;
+  document.querySelectorAll('#active-scene-toggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.scene===scene);
+  });
+  _renderDatasetSelect();
+}
+
 async function refreshDatasets(){
   const list=document.getElementById('dataset-list');
   const select=document.getElementById('active-dataset');
   if(!list||!select)return;
   try{
     const items=await GET('/api/datasets');
+    _allDatasets=items;
     if(!items.length){
       list.innerHTML='<div style="color:var(--muted);font-size:11px;padding:6px 0">Нет загруженных датасетов</div>';
-      select.innerHTML='<option value="">— Встроенный (по умолчанию) —</option>';
-      return;
+    }else{
+      list.innerHTML=items.map(ds=>`
+        <div class="upload-item">
+          <span class="badge ${ds.kind==='images'?'bb':'bp'}">${ds.kind==='images'?'IMG':'TXT'}</span>
+          <span class="ui-name">${esc(ds.name)}</span>
+          <span class="ui-size">${ds.count} шт</span>
+          <button class="ui-del" onclick="delDataset('${esc(ds.name)}')" title="Удалить">×</button>
+        </div>
+      `).join('');
     }
-    const prev=select.value;
-    list.innerHTML=items.map(ds=>`
-      <div class="upload-item">
-        <span class="badge ${ds.kind==='images'?'bb':'bp'}">${ds.kind==='images'?'IMG':'TXT'}</span>
-        <span class="ui-name">${esc(ds.name)}</span>
-        <span class="ui-size">${ds.count} шт</span>
-        <button class="ui-del" onclick="delDataset('${esc(ds.name)}')" title="Удалить">×</button>
-      </div>
-    `).join('');
-    select.innerHTML='<option value="">— Встроенный (по умолчанию) —</option>'+
-      items.map(ds=>`<option value="${esc(ds.name)}">${esc(ds.name)} (${ds.kind}, ${ds.count})</option>`).join('');
-    if(prev && items.find(x=>x.name===prev)) select.value=prev;
+    _renderDatasetSelect();
   }catch(e){
     list.innerHTML=`<div style="color:var(--red);font-size:11px">${esc(e.message)}</div>`;
   }
@@ -1799,24 +1874,14 @@ async function delDataset(name){
   }catch(e){toast(e.message,'err')}
 }
 
-/* Перехват startTest и startNlpTest чтобы прокинуть выбранный dataset */
-const _origStartTest=startTest;
-const _origStartNlpTest=startNlpTest;
-async function _startWithDataset(originalFn, type){
-  const ds=document.getElementById('active-dataset')?.value||'';
-  // Подменяем POST на время вызова чтобы прокинуть dataset в тело
-  const origPOST=window.POST;
-  window.POST=async(path,body)=>{
-    if((path.endsWith('/test/start')||path.endsWith('/test/nlp/start')) && ds){
-      body={...body, dataset: ds};
-    }
-    return origPOST(path,body);
-  };
-  try{ await originalFn(); }
-  finally{ window.POST=origPOST; }
-}
-startTest=()=>_startWithDataset(_origStartTest,'yolo');
-startNlpTest=()=>_startWithDataset(_origStartNlpTest,'nlp');
+/* При смене значения select-а — запоминаем выбор для текущей сцены и
+   перерисовываем лейблы у обеих кнопок. */
+document.addEventListener('change', (e)=>{
+  if(e.target && e.target.id==='active-dataset'){
+    _datasetForScene[_activeScene] = e.target.value || '';
+    _renderActiveDsLabels();
+  }
+});
 
 /* ================================================================
    ВКЛАДКА МЕТРИКИ - описание каждого критерия с формулами расчёта
